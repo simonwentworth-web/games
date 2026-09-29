@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Creature Lab · Splice two animals, discover a new species</title>
+  <meta name="description" content="Pick any two animals (or roll the dice) and splice them into a brand-new species: an AI-generated portrait, a hybrid name, superpowers and three name ideas, ready to share.">
+  <meta name="theme-color" content="#0a1420">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Creature Lab">
+  <meta property="og:description" content="Splice two animals. Discover a brand-new species. Create your own hybrid creature and share it.">
+  <meta property="og:image" content="assets/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Outfit:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" hidden>
+    <symbol id="i-whatsapp" viewBox="0 0 24 24"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></symbol>
+    <symbol id="i-facebook" viewBox="0 0 24 24"><path fill="currentColor" d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="currentColor" d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z"/></symbol>
+    <symbol id="i-reddit" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0C5.373 0 0 5.373 0 12c0 3.314 1.343 6.314 3.515 8.485l-2.286 2.286C.775 23.225 1.097 24 1.738 24H12c6.627 0 12-5.373 12-12S18.627 0 12 0Zm4.388 3.199c1.104 0 1.999.895 1.999 1.999 0 1.105-.895 2-1.999 2-.946 0-1.739-.657-1.947-1.539v.002c-1.147.162-2.032 1.15-2.032 2.341v.007c1.776.067 3.4.567 4.686 1.363.473-.363 1.064-.58 1.707-.58 1.547 0 2.802 1.254 2.802 2.802 0 1.117-.655 2.081-1.601 2.531-.088 3.256-3.637 5.876-7.997 5.876-4.361 0-7.905-2.617-7.998-5.87-.954-.447-1.614-1.415-1.614-2.538 0-1.548 1.255-2.802 2.803-2.802.645 0 1.239.218 1.712.585 1.275-.79 2.881-1.291 4.64-1.365v-.01c0-1.663 1.263-3.034 2.88-3.207.188-.911.993-1.595 1.959-1.595Zm-8.085 8.376c-.784 0-1.459.78-1.506 1.797-.047 1.016.64 1.429 1.426 1.429.786 0 1.371-.369 1.418-1.385.047-1.017-.553-1.841-1.338-1.841Zm7.406 0c-.786 0-1.385.824-1.338 1.841.047 1.017.634 1.385 1.418 1.385.785 0 1.473-.413 1.426-1.429-.046-1.017-.721-1.797-1.506-1.797Zm-3.703 4.013c-.974 0-1.907.048-2.77.135-.147.015-.241.168-.183.305.483 1.154 1.622 1.964 2.953 1.964 1.33 0 2.47-.81 2.953-1.964.057-.137-.037-.29-.184-.305-.863-.087-1.795-.135-2.769-.135Z"/></symbol>
+    <symbol id="i-pinterest" viewBox="0 0 24 24"><path fill="currentColor" d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z"/></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><path fill="currentColor" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M12 15V3M7 8l5-5 5 5M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M3 6h18v12H3zM3 7l9 6 9-6"/></symbol>
+    <symbol id="i-sms" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v11H9l-5 4zM8 10h.01M12 10h.01M16 10h.01"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path fill="currentColor" d="M13.5 2 4 14h7l-1.5 8L20 10h-7l.5-8z"/></symbol>
+    <symbol id="i-dna" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M6 2c0 6 12 6 12 10S6 16 6 22M18 2c0 6-12 6-12 10s12 4 12 10M8 5.5h8M8 18.5h8M9.5 9h5M9.5 15h5"/></symbol>
+  </svg>
+
+  <div class="backdrop" aria-hidden="true">
+    <span class="glow glow-1"></span>
+    <span class="glow glow-2"></span>
+    <span class="glow glow-3"></span>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="./" id="brand-link" aria-label="Creature Lab home">
+      <img class="brand-logo" src="assets/logo.svg" alt="" width="84" height="84">
+      <span class="brand-text" aria-hidden="true">
+        <span class="brand-name">Creature <span class="brand-lab">Lab</span></span>
+        <span class="brand-sub">Hybrid Research Division</span>
+      </span>
+    </a>
+  </header>
+
+  <main id="main">
+    <!-- ============ BUILDER ============ -->
+    <section id="builder" class="view" aria-labelledby="builder-title">
+      <div class="hero">
+        <p class="mono-tag">Experiment no. <span id="experiment-no">001</span></p>
+        <h1 id="builder-title" tabindex="-1">Splice two animals.<br><span class="neon">Discover a new species.</span></h1>
+        <p class="lede">Choose any two animals (or let the lab decide) and we'll splice their DNA into a one-of-a-kind creature, with an AI portrait, a species name, superpowers and three name ideas.</p>
+      </div>
+
+      <form id="builder-form" class="bench" novalidate>
+        <div class="pods">
+          <div class="pod pod-a">
+            <p class="pod-label"><span class="mono">Specimen A</span></p>
+            <div class="pod-window" id="pod-a-window" aria-hidden="true"><span class="pod-emoji" id="pod-a-emoji">?</span></div>
+            <label class="sr-only" for="parent-a">Specimen A</label>
+            <div class="select-wrap"><select id="parent-a" name="a"></select></div>
+            <p class="pod-info" id="parent-a-info" aria-live="polite"></p>
+          </div>
+
+          <div class="splice-sign" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use href="#i-dna"/></svg>
+          </div>
+
+          <div class="pod pod-b">
+            <p class="pod-label"><span class="mono">Specimen B</span></p>
+            <div class="pod-window" id="pod-b-window" aria-hidden="true"><span class="pod-emoji" id="pod-b-emoji">?</span></div>
+            <label class="sr-only" for="parent-b">Specimen B</label>
+            <div class="select-wrap"><select id="parent-b" name="b"></select></div>
+            <p class="pod-info" id="parent-b-info" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="bench-actions">
+          <button type="submit" class="btn btn-lime btn-xl" id="generate-btn">
+            <svg class="btn-icon" aria-hidden="true"><use href="#i-bolt"/></svg> Splice DNA
+          </button>
+          <button type="button" class="btn btn-ghost" id="surprise-btn">🎲 Surprise me</button>
+        </div>
+        <p class="hint"><span class="mono">Rumour:</span> some combinations unlock <strong>legendary creatures</strong>…</p>
+      </form>
+
+      <ol class="steps" aria-label="How it works">
+        <li><span class="step-num">01</span><span><strong>Pick</strong> two animals from 62 specimens</span></li>
+        <li><span class="step-num">02</span><span><strong>Splice</strong> them into a new species</span></li>
+        <li><span class="step-num">03</span><span><strong>Name &amp; share</strong> your discovery</span></li>
+      </ol>
+    </section>
+
+    <!-- ============ RESULT ============ -->
+    <section id="result" class="view" aria-labelledby="creature-name" hidden>
+      <div class="shared-banner" id="shared-banner" hidden>
+        <span class="shared-emoji" aria-hidden="true">🧪</span>
+        <p id="shared-text">Someone shared their creature with you!</p>
+        <button type="button" class="btn btn-small btn-lime" data-action="new">Splice your own</button>
+      </div>
+
+      <div class="reveal">
+        <p class="mono-tag">Experiment complete · Specimen <span id="specimen-no"></span></p>
+        <h2 id="creature-name" class="creature-name" tabindex="-1"></h2>
+        <p class="parents-line"><span id="parent-a-name"></span> <span class="plus" aria-label="spliced with">+</span> <span id="parent-b-name"></span></p>
+        <p class="badge" id="creature-badge"></p>
+      </div>
+
+      <div class="result-grid">
+        <figure class="tank">
+          <div class="tank-frame" id="photo-frame" data-state="loading">
+            <img id="result-image" alt="" decoding="async">
+            <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+            <span class="corner bl" aria-hidden="true"></span><span class="corner br" aria-hidden="true"></span>
+            <div class="photo-loading" id="photo-loading">
+              <img class="loading-logo" src="assets/logo.svg" alt="" width="104" height="104">
+              <p class="loading-text" id="loading-text" aria-live="polite">Splicing DNA…</p>
+              <div class="loading-bar"><span></span></div>
+              <p class="loading-note">AI portraits usually take 10–30 seconds</p>
+            </div>
+            <div class="photo-error" id="photo-error">
+              <p class="error-emoji" aria-hidden="true">💥</p>
+              <p><strong>Containment breach!</strong><br>The portrait couldn't be created just now.</p>
+              <button type="button" class="btn btn-small btn-lime" id="retry-image">Try again</button>
+            </div>
+          </div>
+          <figcaption class="tank-caption"><span class="mono">AI portrait</span> <span id="photo-caption-text"></span></figcaption>
+        </figure>
+
+        <div class="details">
+          <div class="panel notes">
+            <h3 class="panel-title"><span class="mono">Field notes</span></h3>
+            <p id="creature-description" class="description"></p>
+            <dl class="stats" id="stats"></dl>
+            <div class="powers">
+              <h4 class="mono">Superpowers</h4>
+              <ul id="powers"></ul>
+            </div>
+          </div>
+
+          <div class="panel names">
+            <h3 class="panel-title">Name your creature</h3>
+            <div class="name-options" id="name-options" role="radiogroup" aria-label="Suggested names"></div>
+            <label class="custom-name" for="custom-name">
+              <span>…or give it your own name</span>
+              <input type="text" id="custom-name" maxlength="24" autocomplete="off" placeholder="Type a name">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel share">
+        <div class="share-head">
+          <h3 class="panel-title">Share <span id="share-pet-name"></span></h3>
+          <p class="share-preview" id="share-preview"></p>
+        </div>
+        <div class="share-buttons" id="share-buttons">
+          <button type="button" class="share-btn share-native" data-share="native" hidden><span class="share-icon"><svg><use href="#i-share"/></svg></span><span>Share…</span></button>
+          <a class="share-btn share-whatsapp" data-share="whatsapp" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-whatsapp"/></svg></span><span>WhatsApp</span></a>
+          <a class="share-btn share-facebook" data-share="facebook" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-facebook"/></svg></span><span>Facebook</span></a>
+          <a class="share-btn share-x" data-share="x" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-x"/></svg></span><span>X</span></a>
+          <a class="share-btn share-reddit" data-share="reddit" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-reddit"/></svg></span><span>Reddit</span></a>
+          <a class="share-btn share-pinterest" data-share="pinterest" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-pinterest"/></svg></span><span>Pinterest</span></a>
+          <a class="share-btn share-telegram" data-share="telegram" target="_blank" rel="noopener"><span class="share-icon"><svg><use href="#i-telegram"/></svg></span><span>Telegram</span></a>
+          <a class="share-btn share-sms" data-share="sms" hidden><span class="share-icon"><svg><use href="#i-sms"/></svg></span><span>Text</span></a>
+          <a class="share-btn share-email" data-share="email"><span class="share-icon"><svg><use href="#i-mail"/></svg></span><span>Email</span></a>
+          <button type="button" class="share-btn share-copy" data-share="copy"><span class="share-icon"><svg><use href="#i-link"/></svg></span><span>Copy link</span></button>
+          <button type="button" class="share-btn share-download" data-share="download"><span class="share-icon"><svg><use href="#i-download"/></svg></span><span>Save card</span></button>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <button type="button" class="btn btn-lime" data-action="remix">🧪 Splice again</button>
+        <button type="button" class="btn btn-ghost" data-action="new">↺ New experiment</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="mixing" id="mixing" hidden>
+    <div class="mixing-card" role="status" aria-live="assertive">
+      <div class="mixing-row">
+        <span class="mixing-emoji" id="mixing-a-emoji"></span>
+        <img class="mixing-logo" src="assets/logo.svg" alt="" width="120" height="120">
+        <span class="mixing-emoji" id="mixing-b-emoji"></span>
+      </div>
+      <p class="mixing-text">Splicing <span id="mixing-a"></span> + <span id="mixing-b"></span>…</p>
+      <div class="loading-bar"><span></span></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <footer class="site-footer">
+    <p>Portraits are AI-generated for fun. No real animals were spliced in the making of this lab.</p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/generator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

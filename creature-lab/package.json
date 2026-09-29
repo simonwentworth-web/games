@@ -1,0 +1,14 @@
+{
+  "name": "creature-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Splice any two animals into a brand-new species with an AI portrait, a hybrid name, superpowers and name ideas.",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

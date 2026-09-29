@@ -2,11 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Games</title>
-  <meta http-equiv="refresh" content="0; url=unique-animal-generator/">
-  <link rel="canonical" href="unique-animal-generator/">
+  <meta name="description" content="Make one-of-a-kind animals: mix cat and dog breeds, or splice any two animals into a brand-new species.">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 40px 16px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: #1d1a2e;
+      background: #f5f1ea;
+    }
+    main { width: min(980px, 100%); margin: 0 auto; }
+    h1 { margin: 0 0 6px; font-size: clamp(1.8rem, 5vw, 2.6rem); text-align: center; }
+    p.lede { margin: 0 0 32px; text-align: center; color: #5b5670; font-size: 1.1rem; }
+    .games { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+    .game {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: inherit;
+      text-decoration: none;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(29, 26, 46, 0.12);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .game:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(29, 26, 46, 0.18); }
+    .game:focus-visible { outline: 3px solid #7b5cff; outline-offset: 4px; }
+    .game img { width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; display: block; }
+    .game div { padding: 18px 20px 22px; }
+    .game h2 { margin: 0 0 6px; font-size: 1.3rem; }
+    .game p { margin: 0; color: #5b5670; }
+  </style>
 </head>
 <body>
-  <p><a href="unique-animal-generator/">Open the Unique Animal Generator</a></p>
+  <main>
+    <h1>Make a one-of-a-kind animal</h1>
+    <p class="lede">Pick a game, mix some DNA and share what you create.</p>
+    <div class="games">
+      <a class="game" href="unique-animal-generator/">
+        <img src="unique-animal-generator/assets/og-image.png" alt="Unique Animal Generator logo: a half-dog, half-cat face in a badge">
+        <div>
+          <h2>Unique Animal Generator</h2>
+          <p>Cross two cat breeds or two dog breeds and meet your new designer pet.</p>
+        </div>
+      </a>
+      <a class="game" href="creature-lab/">
+        <img src="creature-lab/assets/og-image.png" alt="Creature Lab logo: a winged creature bubbling inside a lab flask">
+        <div>
+          <h2>Creature Lab</h2>
+          <p>Splice any two animals, from lions to jellyfish, into a brand-new species.</p>
+        </div>
+      </a>
+    </div>
+  </main>
 </body>
 </html>
