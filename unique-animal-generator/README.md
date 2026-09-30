@@ -53,11 +53,29 @@ OPENAI_API_KEY=sk-... npm start
 | `OPENAI_IMAGE_MODEL` | `gpt-image-1` | Any Images API model (`dall-e-3` also works) |
 | `OPENAI_IMAGE_QUALITY` | `medium` | `low`, `medium` or `high` (gpt-image models) |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Point at any OpenAI-compatible images endpoint |
+| `VISITOR_FILE` | `data/visitors.json` | Where the server keeps the visitor count |
 | `PORT` | `8080` | Port to listen on |
 
 The page detects the server automatically through `/api/config`. The server builds every prompt
 itself from the breed list (visitors can't send arbitrary prompts), caches finished portraits in
 memory so shared links reuse them, and limits each visitor to 10 new portraits a minute.
+
+## Visitor counter
+
+The footer has an old-fashioned hit counter showing how many **unique visitors** the page has
+had. Each browser is counted once: the first visit shows "You are visitor #1,234!", and later
+visits say "Welcome back". The browser remembers its visitor number in localStorage. Crawlers and
+link-preview bots aren't counted, and neither are local previews (`localhost` or opening the file
+directly), so testing never skews the numbers.
+
+- **On static hosting such as GitHub Pages**, counts are kept by
+  [Abacus](https://abacus.jasoncameron.dev), a free counting service that needs no account. The
+  counter is named after the site's address, so each deployment has its own count.
+- **When served by `npm start`**, the server keeps the count itself in `data/visitors.json`
+  (it stores only a scrambled hash of each browser's random ID; set `VISITOR_FILE` to move it).
+
+A "unique visitor" is really a unique browser: someone who clears their browsing data or switches
+devices is counted again, just like the classic counters it imitates.
 
 ## Project layout
 
@@ -67,7 +85,9 @@ css/styles.css      branding and layout
 js/data.js          breeds, colours, temperaments and name pools
 js/generator.js     cross-breed logic: names, trait blending, pet names, image prompt
 js/app.js           UI, URL routing, image loading, sharing, share card
+js/visitor-counter.js  the footer's unique-visitor counter
 server.js           optional zero-dependency server with OpenAI image support
+visitors.js         unique-visitor store used by the server
 assets/             logo, favicon, touch icon, social preview image
 tests/              node:test suites for the generator and server
 ```

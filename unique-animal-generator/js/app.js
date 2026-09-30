@@ -62,6 +62,7 @@
 
   const state = {
     provider: 'pollinations',
+    serverVisitors: false, // true when server.js keeps the visitor count
     result: null,
     petName: '',
     suggestedName: '', // last suggestion picked, restored if a custom name is cleared
@@ -700,6 +701,7 @@
       if (!res.ok) return;
       const cfg = await res.json();
       if (cfg && cfg.imageProvider === 'server') state.provider = 'server';
+      if (cfg && cfg.visitorCounter === 'server') state.serverVisitors = true;
     } catch (_) {
       // Static hosting: keep the default provider.
     }
@@ -754,6 +756,9 @@
     bindEvents();
     await detectProvider();
     route();
+    if (window.VisitorCounter) {
+      window.VisitorCounter.start(document.getElementById('visitor-counter'), { useServer: state.serverVisitors });
+    }
   }
 
   init();

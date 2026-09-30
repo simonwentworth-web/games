@@ -23,7 +23,7 @@ test('serves the app and reports the free image provider without a key', async (
     assert.equal(page.status, 200);
     assert.match(await page.text(), /Creature Lab/);
     assert.match((await fetch(`${base}/js/app.js`)).headers.get('content-type'), /javascript/);
-    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { imageProvider: 'pollinations' });
+    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { imageProvider: 'pollinations', visitorCounter: 'server' });
     assert.equal((await fetch(`${base}/api/image?a=lion&b=tiger&seed=1`)).status, 404);
   });
 });
@@ -43,7 +43,7 @@ test('generates, caches and validates portraits with an API key', async () => {
     return new Response(JSON.stringify({ data: [{ b64_json: PNG.toString('base64') }] }), { status: 200 });
   };
   await withServer({ apiKey: 'test-key', baseUrl: 'https://images.example/v1/', fetch: fakeFetch }, async (base) => {
-    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { imageProvider: 'server' });
+    assert.deepEqual(await (await fetch(`${base}/api/config`)).json(), { imageProvider: 'server', visitorCounter: 'server' });
 
     const url = `${base}/api/image?a=elephant&b=shark&seed=123`;
     const first = await fetch(url);

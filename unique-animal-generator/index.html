@@ -228,11 +228,18 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <footer class="site-footer">
+    <div class="visitor-counter" id="visitor-counter" data-counter-key="unique-animal-generator" data-state="loading">
+      <p class="vc-title"><span aria-hidden="true">★</span> Unique visitors since 2026 <span aria-hidden="true">★</span></p>
+      <div class="vc-digits" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span></div>
+      <p class="vc-note">Counting visitors…</p>
+      <p class="vc-sr sr-only" aria-live="polite"></p>
+    </div>
     <p><svg class="footer-paw" aria-hidden="true"><use href="#i-paw"/></svg> Portraits are AI-generated for fun and may not match what a real cross-breed looks like.</p>
   </footer>
 
   <script src="js/data.js"></script>
   <script src="js/generator.js"></script>
+  <script src="js/visitor-counter.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

@@ -201,11 +201,18 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <footer class="site-footer">
+    <div class="visitor-counter" id="visitor-counter" data-counter-key="creature-lab" data-state="loading">
+      <p class="vc-title">Unique visitors · since 2026</p>
+      <div class="vc-digits" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span><span>0</span></div>
+      <p class="vc-note">Counting visitors…</p>
+      <p class="vc-sr sr-only" aria-live="polite"></p>
+    </div>
     <p>Portraits are AI-generated for fun. No real animals were spliced in the making of this lab.</p>
   </footer>
 
   <script src="js/data.js"></script>
   <script src="js/generator.js"></script>
+  <script src="js/visitor-counter.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

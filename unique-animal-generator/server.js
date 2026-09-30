@@ -5,6 +5,8 @@
  *   npm start                          serve the app on http://localhost:8080
  *   OPENAI_API_KEY=sk-... npm start    also generate portraits with the OpenAI Images API
  *
+ * It also keeps the page's unique-visitor count in data/visitors.json (see visitors.js).
+ *
  * Without a key the page falls back to the free Pollinations image service, exactly
  * as it does on static hosting. With a key, the browser asks this server for
  * /api/image?s=&a=&b=&seed=; the prompt is always built here from the breed list,
@@ -16,6 +18,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const G = require('./js/generator.js');
+const { createVisitorStore } = require('./visitors.js');
 
 const ROOT = __dirname;
 const PUBLIC_DIRS = new Set(['assets', 'css', 'js']);
@@ -47,6 +50,8 @@ function createServer(options) {
       quality: process.env.OPENAI_IMAGE_QUALITY || 'medium',
       cacheSize: 200,
       rateLimit: 10, // new images per client per minute
+      visitorFile: process.env.VISITOR_FILE || path.join(ROOT, 'data', 'visitors.json'),
+      visitorRateLimit: 30, // new visitors per client per minute
       fetch: globalThis.fetch
     },
     options
@@ -54,6 +59,8 @@ function createServer(options) {
   const baseUrl = opts.baseUrl.replace(/\/+$/, '');
   const cache = new Map(); // key -> Promise<{ body, type }>
   const hits = new Map(); // ip -> timestamps of recent generations
+  const visitorHits = new Map(); // ip -> timestamps of recently counted visitors
+  const visitors = createVisitorStore(opts.visitorFile);
 
   function send(res, status, body, headers) {
     res.writeHead(status, Object.assign({ 'X-Content-Type-Options': 'nosniff' }, headers));
@@ -64,13 +71,52 @@ function createServer(options) {
     send(res, status, JSON.stringify(data), { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
   }
 
-  function allowRequest(ip) {
+  function allowRequest(ip, log = hits, limit = opts.rateLimit) {
     const now = Date.now();
-    const recent = (hits.get(ip) || []).filter((t) => now - t < 60000);
-    if (recent.length >= opts.rateLimit) return false;
+    const recent = (log.get(ip) || []).filter((t) => now - t < 60000);
+    if (recent.length >= limit) return false;
     recent.push(now);
-    hits.set(ip, recent);
+    log.set(ip, recent);
     return true;
+  }
+
+  function readJson(req, limit) {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      let size = 0;
+      req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size <= limit) chunks.push(chunk);
+        else if (size > limit * 64) req.destroy(); // hang up on floods, answer the rest politely
+      });
+      req.on('end', () => {
+        if (size > limit) return reject(new Error('Body too large'));
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+        } catch (err) {
+          reject(err);
+        }
+      });
+      req.on('error', reject);
+    });
+  }
+
+  // GET: the unique-visitor total. POST { id }: count this browser (once) and
+  // return its visitor number.
+  async function handleVisitors(req, res) {
+    if (req.method !== 'POST') return sendJson(res, 200, { total: visitors.total() });
+    let body;
+    try {
+      body = await readJson(req, 1024);
+    } catch (_) {
+      return sendJson(res, 400, { error: 'Expected a small JSON body.' });
+    }
+    const id = body && body.id;
+    if (!visitors.isValidId(id)) return sendJson(res, 400, { error: 'Invalid visitor id.' });
+    if (!visitors.has(id) && !allowRequest(req.socket.remoteAddress || 'unknown', visitorHits, opts.visitorRateLimit)) {
+      return sendJson(res, 429, { error: 'Too many new visitors from here, try again in a minute.' });
+    }
+    sendJson(res, 200, visitors.visit(id));
   }
 
   async function generateImage(prompt) {
@@ -146,18 +192,24 @@ function createServer(options) {
     });
   }
 
-  return http.createServer((req, res) => {
+  const server = http.createServer((req, res) => {
     let url;
     try {
       url = new URL(req.url, 'http://localhost');
     } catch (_) {
       return send(res, 400, 'Bad request');
     }
+    if (url.pathname === '/api/visitors' && ['GET', 'HEAD', 'POST'].includes(req.method)) {
+      return handleVisitors(req, res).catch((err) => {
+        console.error('[visitors]', err);
+        sendJson(res, 500, { error: 'Unexpected error.' });
+      });
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return send(res, 405, 'Method not allowed', { Allow: 'GET, HEAD' });
     }
     if (url.pathname === '/api/config') {
-      return sendJson(res, 200, { imageProvider: opts.apiKey ? 'server' : 'pollinations' });
+      return sendJson(res, 200, { imageProvider: opts.apiKey ? 'server' : 'pollinations', visitorCounter: 'server' });
     }
     if (url.pathname === '/api/image') {
       return handleImage(req, res, url).catch((err) => {
@@ -171,6 +223,9 @@ function createServer(options) {
       send(res, 400, 'Bad request');
     }
   });
+  server.on('close', () => visitors.flush());
+  server.flushVisitors = () => visitors.flush();
+  return server;
 }
 
 if (require.main === module) {
@@ -181,6 +236,12 @@ if (require.main === module) {
     console.log(`Unique Animal Generator running at http://localhost:${port}`);
     console.log(`Portraits: ${mode}`);
   });
+  for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.on(signal, () => {
+      server.flushVisitors();
+      process.exit(0);
+    });
+  }
 }
 
 module.exports = { createServer };
