@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Brain Bridge: BGS and QEH 11+ trainer">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f80ed"/><stop offset="1" stop-color="#1f4e9a"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <path d="M120 430 Q600 120 1080 430" fill="none" stroke="#f2c94c" stroke-width="22" stroke-linecap="round"/>
+  <path d="M120 430 H1080" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <g stroke="#f2c94c" stroke-width="10" stroke-linecap="round"><line x1="300" y1="430" x2="300" y2="300"/><line x1="450" y1="430" x2="450" y2="225"/><line x1="600" y1="430" x2="600" y2="200"/><line x1="750" y1="430" x2="750" y2="225"/><line x1="900" y1="430" x2="900" y2="300"/></g>
+  <rect x="160" y="330" width="40" height="150" rx="8" fill="#fff"/><rect x="1000" y="330" width="40" height="150" rx="8" fill="#fff"/>
+  <text x="600" y="540" font-family="Fredoka, Nunito, system-ui, sans-serif" font-size="88" font-weight="700" fill="#fff" text-anchor="middle">Brain Bridge</text>
+  <text x="600" y="595" font-family="Nunito, system-ui, sans-serif" font-size="34" fill="#dbe9ff" text-anchor="middle">BGS &amp; QEH 11+ trainer · 40 minutes a week · earn games tokens</text>
+</svg>

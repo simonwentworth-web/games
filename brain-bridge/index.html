@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brain Bridge · BGS &amp; QEH 11+ trainer</title>
+  <meta name="description" content="A fun, adaptive 40-minute-a-week trainer for the Bristol Grammar School and QEH 11+ entrance exams and interviews. Earn a games token for every session.">
+  <meta name="theme-color" content="#1f4e9a">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Brain Bridge">
+  <meta property="og:description" content="Train for the BGS and QEH 11+ exams and interviews: 40 minutes a week, one games token per session.">
+  <meta property="og:image" content="assets/og-image.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="#home" aria-label="Brain Bridge home">
+      <img src="assets/logo.svg" alt="" width="44" height="44">
+      <span class="brand-text">Brain <span>Bridge</span></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#home" data-nav="home">Home</a>
+      <a href="#practice" data-nav="practice">Practice</a>
+      <a href="#writing" data-nav="writing">Writing</a>
+      <a href="#interview" data-nav="interview">Interview</a>
+      <a href="#progress" data-nav="progress">Progress</a>
+      <a href="#guide" data-nav="guide">Exam guide</a>
+      <a href="#parent" data-nav="parent" class="nav-parent">Parent corner</a>
+    </nav>
+    <div class="header-stats" id="header-stats" aria-live="polite"></div>
+  </header>
+
+  <main id="main" class="app" tabindex="-1"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+  <footer class="site-footer">
+    <p>Brain Bridge is an independent practice tool and is not affiliated with Bristol Grammar School, QEH or Atom Learning. Always check dates and formats with the schools. Progress is stored only in this browser: back it up from the Parent corner.</p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/generators.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

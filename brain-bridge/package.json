@@ -1,0 +1,14 @@
+{
+  "name": "brain-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An adaptive, game-like 40-minute-a-week trainer for the Bristol Grammar School and QEH 11+ entrance exams and interviews.",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
