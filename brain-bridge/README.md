@@ -14,6 +14,12 @@ localStorage, with export/import from the Parent corner.
   reasoning, problem solving) like the Atom Learning online test. BGS weeks use typed answers,
   problem solving and a creative-writing sprint like the written papers. Every session ends with
   an interview question.
+- **Teaches first, tests later.** Each session starts in a learn phase: an unfamiliar topic
+  opens with a short, friendly mini-lesson (steps, a worked example and a golden rule) before
+  the first question. After about 22 minutes the session shifts into a challenge phase that
+  tests and reinforces skills already practised. Every question has a hint and a "Learn it"
+  button; hints are always allowed, but finishing with hints on under a third of questions
+  adds 5 bonus minutes to the session's token (worth 45 minutes instead of 40).
 - **Adapts to the student.** Every one of 55 skills has a mastery score (0-100). Questions are
   pitched at level 1, 2 or 3 from that score; three right in a row can trigger a stretch question
   and two misses bring a confidence-builder. Each session gives extra minutes to the weakest
@@ -29,7 +35,11 @@ localStorage, with export/import from the Parent corner.
   sentences, 42 odd-one-out sets, 38 analogies, 36 compound words, 60 missing-word items, 50
   hand-written puzzles, 20 writing prompts, 45 interview questions across six categories with
   four answer frameworks, and procedural generators for 37 skills (maths, verbal and non-verbal
-  reasoning with SVG figures, timetables and charts), so the practice never runs out.
+  reasoning with SVG figures, timetables and charts), so the practice never runs out. Every
+  one of the 45 quiz skills has its own mini-lesson in `js/lessons.js`.
+- **Forgiving answer checking.** Typed answers accept natural variations: 26p, 26 pence or
+  £0.26 for a 26p answer; 350p for £3.50; 45° or "45 degrees"; 28cm2 for 28 cm²; 16.30 or
+  1630 for 16:30; "minus 28"; number words; and a number wrapped in words ("day 8").
 - **Studios**: free practice by topic/level/format, a writing studio with timer, planning and
   history, and an interview studio with frameworks, a "say it out loud" mode with optional
   recording, rapid fire, and a "Why this school" answer builder.
@@ -65,6 +75,7 @@ writing and interview feedback, tokens, badges and storage.
 index.html        page shell
 css/styles.css    styling
 js/data.js        schools, passages, banks, prompts, interview questions, badges
+js/lessons.js     one mini-lesson per quiz skill (also the fallback hints)
 js/generators.js  seeded procedural question generators + SVG figures
 js/engine.js      mastery model, session composer, grading, feedback, tokens, badges
 js/store.js       localStorage persistence, export/import

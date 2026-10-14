@@ -95,7 +95,7 @@
     const wk = E.weekKey(now);
     const doneThisWeek = state.sessions.some((s) => E.weekKey(s.finishedAt || s.startedAt) === wk);
     const plan = state.current && state.current.plan ? state.current.plan : E.composeSession(state, state.profile, sessionsDone());
-    const avail = state.tokens.earned - state.tokens.spent;
+    const vault = E.availableTokens(state);
     const ov = E.overview(state);
     const focus = E.focusSuggestions(state, 3);
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -116,7 +116,7 @@
         <div class="card session-card">
           <span class="pill ${plan.style}">${state.current ? 'Session in progress' : plan.style === 'qeh' ? 'QEH-style week: fast, multiple choice' : 'BGS-style week: written answers & writing'}</span>
           <h2 style="margin-top:8px">${state.current ? 'Carry on where you left off' : `Session ${sessionsDone() + 1}: 40 minutes`}</h2>
-          <p class="muted">${doneThisWeek && !state.current ? `You have already done this week’s session. Extra sessions earn bonus stars and XP; the next token unlocks next week (weeks run Monday to Sunday).` : `Session day: ${days[state.profile.sessionDay]}. Finish all 40 minutes to earn a token worth 40 minutes of video games.`}</p>
+          <p class="muted">${doneThisWeek && !state.current ? `You have already done this week’s session. Extra sessions earn bonus stars and XP; the next token unlocks next week (weeks run Monday to Sunday).` : `Session day: ${days[state.profile.sessionDay]}. Finish all 40 minutes to earn a token worth 40 minutes of video games — and up to 5 bonus minutes if you solve mostly without hints. New topics are taught first with mini-lessons.`}</p>
           <ul>${plan.blocks.filter((b) => b.type !== 'wrap').map((b) => `<li>${esc(b.label)} · ${b.minutes} min${b.boosted ? ' ⬆' : ''}</li>`).join('')}</ul>
           <div class="btn-row"><a class="btn big" href="#session">${state.current ? 'Resume session' : 'Start session'}</a>${state.current ? '<button class="btn ghost sm" id="abandon">Abandon</button>' : ''}</div>
         </div>
@@ -124,7 +124,7 @@
       <section class="grid two">
         <div class="card">
           <h2>Token vault</h2>
-          <div class="vault"><span class="coin" aria-hidden="true">🎟️</span><div><span class="count">${avail}</span><div class="muted">token${avail === 1 ? '' : 's'} to spend = ${avail * 40} minutes of games</div><div class="small muted">${state.tokens.earned} earned · ${state.tokens.spent} spent. A grown-up redeems them in the Parent corner.</div></div></div>
+          <div class="vault"><span class="coin" aria-hidden="true">🎟️</span><div><span class="count">${vault.count}</span><div class="muted">token${vault.count === 1 ? '' : 's'} to spend = ${vault.minutes} minutes of games</div><div class="small muted">${state.tokens.earned} earned · ${state.tokens.spent} spent. Mostly hint-free sessions add +5 minutes to a token. A grown-up redeems them in the Parent corner.</div></div></div>
         </div>
         <div class="card">
           <h2>How you are doing</h2>
@@ -169,10 +169,26 @@
       ${qn.mode === 'stretch' ? `<div class="q-mode"><span class="pill grape">🦾 ${esc(pick(D.STRETCH_INTRO))}</span></div>` : qn.mode === 'confidence' ? `<div class="q-mode"><span class="pill mint">${esc(pick(D.CONFIDENCE_INTRO))}</span></div>` : ''}
       <div class="q-prompt">${qn.prompt}</div>
       ${qn.visual ? `<div class="q-visual">${qn.visual}</div>` : ''}
+      <div class="help-row"></div>
       <div class="answer-area"></div>
       <div class="feedback-area"></div>
     </div>`;
     const area = $('.answer-area', container), fb = $('.feedback-area', container);
+
+    // Hint and mini-lesson, available before answering. In sessions, using
+    // either counts towards the hint-free +5 minute bonus (opts.onHelp).
+    let helpUsed = false;
+    const hint = E.hintFor(qn);
+    const lesson = E.lessonFor(qn.skill);
+    const helpRow = $('.help-row', container);
+    if (hint || lesson) {
+      helpRow.innerHTML = `${hint ? '<button type="button" class="btn ghost sm" data-hint>💡 Hint</button>' : ''}${lesson ? '<button type="button" class="btn ghost sm" data-learn>📖 Learn it</button>' : ''}<span class="help-note">${esc(opts.helpNote || '')}</span><div class="hint-panel" hidden></div><div class="lesson-panel" hidden></div>`;
+      const markHelp = () => { if (!helpUsed) { helpUsed = true; if (opts.onHelp) opts.onHelp(); } };
+      const hb = $('[data-hint]', helpRow);
+      if (hb) hb.onclick = () => { const pnl = $('.hint-panel', helpRow); pnl.textContent = '💡 ' + hint; pnl.hidden = false; hb.disabled = true; markHelp(); };
+      const lb = $('[data-learn]', helpRow);
+      if (lb) lb.onclick = () => { const pnl = $('.lesson-panel', helpRow); if (pnl.hidden) { pnl.innerHTML = lessonHtml(lesson, true); pnl.hidden = false; markHelp(); } else pnl.hidden = true; };
+    }
 
     if (qn.format === 'mc') {
       const isSvg = qn.options.some((o) => String(o).startsWith('<svg'));
@@ -198,14 +214,16 @@
     }
 
     function finish(g, meta) {
+      meta = Object.assign({ helpUsed }, meta);
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       if (g.result === 'self') { showSelfMark(seconds); return; }
       showFeedback(g.result, g.note, Object.assign({ skipped: g.skipped }, meta), seconds);
     }
 
     function showSelfMark(seconds) {
+      const held = helpUsed;
       fb.innerHTML = `<div class="feedback self"><div class="headline">Now compare with the model answer</div><div class="model">${esc(qn.model || '')}</div><p class="small muted">Mark yourself honestly: that is how you get better.</p><div class="selfmark"><button type="button" class="btn mint sm" data-r="correct">I got it ✅</button><button type="button" class="btn sun sm" data-r="partial">Partly 🟡</button><button type="button" class="btn coral sm" data-r="wrong">Not yet ❌</button></div></div>`;
-      $$('[data-r]', fb).forEach((b) => { b.onclick = () => showFeedback(b.dataset.r, null, { self: true }, seconds); });
+      $$('[data-r]', fb).forEach((b) => { b.onclick = () => showFeedback(b.dataset.r, null, { self: true, helpUsed: held }, seconds); });
     }
 
     function showFeedback(result, note, meta, seconds) {
@@ -242,6 +260,15 @@
     return xp;
   }
 
+  function lessonHtml(lesson, compact) {
+    return `<div class="lesson ${compact ? 'compact' : ''}">
+      <div class="lesson-head"><span class="em" aria-hidden="true">${lesson.e}</span><div>${compact ? '' : '<p class="small muted" style="margin:0">Mini-lesson · learn it first, then try it</p>'}<h3>${esc(lesson.t)}</h3></div></div>
+      <ol class="lesson-steps">${lesson.steps.map((x) => `<li>${x}</li>`).join('')}</ol>
+      <div class="lesson-ex"><b>Watch one:</b> ${lesson.ex}</div>
+      <p class="lesson-remember">🧠 <b>Remember:</b> ${esc(lesson.r)}</p>
+    </div>`;
+  }
+
   function passageHtml(p) {
     return `<details class="passage ${p.poem ? 'poem' : ''}" open><summary>${esc(p.title)} <span class="pill">${esc(p.kind)}</span></summary><p class="small muted"><i>${esc(p.intro)}</i></p>${p.text.map((t) => (p.data && t.startsWith('<') ? t : `<p>${esc(t)}</p>`)).join('')}</details>`;
   }
@@ -259,16 +286,18 @@
   views.session = function () {
     if (!state.current) {
       const plan = E.composeSession(state, state.profile, sessionsDone());
-      state.current = { plan, blockIndex: 0, phase: 'intro', startedAt: Date.now(), activeSeconds: 0, blockSeconds: 0, answers: [], seed: Math.floor(Math.random() * 1e9), streak: 0, bestStreak: 0, q: null, block: {}, paused: false };
+      state.current = { plan, blockIndex: 0, phase: 'intro', startedAt: Date.now(), activeSeconds: 0, blockSeconds: 0, answers: [], seed: Math.floor(Math.random() * 1e9), streak: 0, bestStreak: 0, q: null, block: {}, paused: false, hints: { used: 0, total: 0 }, taught: [] };
       save();
     }
+    state.current.hints = state.current.hints || { used: 0, total: 0 };
+    state.current.taught = state.current.taught || [];
     renderSession();
     tickTimer = setInterval(tick, 1000);
   };
 
   function tick() {
     const c = cur(); if (!c) return;
-    if (!['question', 'feedback', 'task'].includes(c.phase) || c.paused || document.visibilityState !== 'visible') return;
+    if (!['question', 'feedback', 'task', 'teach'].includes(c.phase) || c.paused || document.visibilityState !== 'visible') return;
     c.activeSeconds += 1; c.blockSeconds += 1;
     updateTimerUI();
     if (c.activeSeconds % 10 === 0) save();
@@ -280,7 +309,22 @@
     }
   }
 
+  function updateHintMeter() {
+    const c = cur(); if (!c) return;
+    const m = $('#hint-meter'); const pc = $('#phase-chip');
+    if (m) {
+      const h = c.hints; const onTrack = h.total < 8 || h.used * 3 <= h.total;
+      m.textContent = `💡 ${h.used} hint${h.used === 1 ? '' : 's'} · +5 min ${onTrack ? 'bonus on track' : 'bonus missed'}`;
+      m.className = 'pill ' + (onTrack ? 'sun' : 'coral');
+    }
+    if (pc) {
+      const phase = E.sessionPhase(c.activeSeconds);
+      pc.innerHTML = phase === 'learn' ? '<span class="pill mint">🎓 Learn first</span>' : '<span class="pill grape">🏆 Challenge time</span>';
+    }
+  }
+
   function updateTimerUI() {
+    updateHintMeter();
     const t = $('#timer'); if (!t) return;
     const r = remaining(); t.textContent = mmss(r); t.classList.toggle('warn', r < 120);
     const b = curBlock(); const bb = $('#block-bar i'); if (bb) bb.style.width = Math.min(100, (cur().blockSeconds / (b.minutes * 60)) * 100) + '%';
@@ -296,6 +340,8 @@
         <div><div class="block-label">${BLOCK_EMOJI[b.type] || ''} ${esc(b.label)}</div><div class="small muted">Block ${c.blockIndex + 1} of ${blocks.length} · <span id="block-time">${mmss(Math.max(0, b.minutes * 60 - c.blockSeconds))}</span> left in block · <span class="pill ${c.plan.style}">${c.plan.style.toUpperCase()} style</span></div></div>
         <div class="block-bar" id="block-bar" aria-hidden="true"><i style="width:${Math.min(100, (c.blockSeconds / (b.minutes * 60)) * 100)}%"></i></div>
         <div class="dots" aria-hidden="true">${blocks.map((x, i) => `<i class="${i < c.blockIndex ? 'done' : i === c.blockIndex ? 'now' : ''}"></i>`).join('')}</div>
+        <span id="phase-chip"></span>
+        <span class="pill sun" id="hint-meter" title="Hints are always allowed. Use them on fewer than a third of questions to add 5 bonus minutes to your token."></span>
         <div class="streak" id="streak">${c.streak >= 2 ? `🔥 ${c.streak} in a row` : ''}</div>
         <button type="button" class="btn ghost sm" id="pause">Pause</button>
         <a class="btn ghost sm" href="#home" title="Your place is saved">Home</a>
@@ -317,6 +363,7 @@
     const c = cur(); const b = curBlock(); const stage = $('#stage');
     if (c.paused) renderPause();
     if (c.phase === 'intro') renderBlockIntro(stage, b);
+    else if (c.phase === 'teach') renderTeach(stage);
     else if (c.phase === 'question' || c.phase === 'feedback') renderCurrentQuestion(stage);
     else if (c.phase === 'task') renderTask(stage, b);
   }
@@ -333,7 +380,7 @@
 
   function renderBlockIntro(stage, b) {
     const c = cur();
-    stage.innerHTML = `<div class="block-intro"><div class="em">${BLOCK_EMOJI[b.type] || '🧠'}</div><h2>${esc(b.label)}</h2><p class="muted">${b.minutes} minute${b.minutes === 1 ? '' : 's'} · ${b.format === 'mc' ? 'multiple choice, like the QEH online test' : b.type === 'quiz' || b.type === 'passage' ? 'typed answers, like the BGS written papers' : b.type === 'writing' ? 'one piece of writing' : 'one interview question'}${b.boosted ? ' · extra time here because it is your weakest area right now' : ''}</p><p class="tip">💡 ${esc(blockTip(b, c.plan.style))}</p><div class="btn-row" style="justify-content:center"><button type="button" class="btn big" id="go">Go!</button></div></div>`;
+    stage.innerHTML = `<div class="block-intro"><div class="em">${BLOCK_EMOJI[b.type] || '🧠'}</div><h2>${esc(b.label)}</h2><p class="muted">${b.minutes} minute${b.minutes === 1 ? '' : 's'} · ${b.format === 'mc' ? 'multiple choice, like the QEH online test' : b.type === 'quiz' || b.type === 'passage' ? 'typed answers, like the BGS written papers' : b.type === 'writing' ? 'one piece of writing' : 'one interview question'}${b.boosted ? ' · extra time here because it is your weakest area right now' : ''}</p><p class="small muted">${E.sessionPhase(c.activeSeconds) === 'learn' ? '🎓 Learn-first phase: new topics come with a mini-lesson before you try them.' : '🏆 Challenge phase: time to show what you have learnt!'}</p><p class="tip">💡 ${esc(blockTip(b, c.plan.style))}</p><div class="btn-row" style="justify-content:center"><button type="button" class="btn big" id="go">Go!</button></div></div>`;
     const go = () => startBlock();
     $('#go').onclick = go;
     keyHandler = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
@@ -341,7 +388,7 @@
 
   function startBlock() {
     const c = cur(); const b = curBlock();
-    c.blockSeconds = 0; c.block = {}; c.lastSkill = null;
+    c.blockSeconds = 0; c.block = {}; c.lastSkill = null; c.blockTaught = 0;
     if (b.type === 'wrap') { finishSession(); return; }
     if (b.type === 'passage') {
       const level = E.levelFor(E.subjectScore(state, 'english').score);
@@ -358,6 +405,7 @@
   function nextQuestion() {
     const c = cur(); const b = curBlock(); const rng = sessionRng();
     const seen = new Set(Object.keys(state.seen));
+    const phase = E.sessionPhase(c.activeSeconds);
     let qn;
     if (b.type === 'passage' && !c.block.exhausted) {
       const p = D.PASSAGES.find((x) => x.id === c.block.passageId);
@@ -367,11 +415,26 @@
     }
     if (!qn) {
       const block = b.type === 'passage' ? Object.assign({}, b, { type: 'quiz', skills: ['e.punct', 'e.grammar', 'e.spelling', 'vr.synonym', 'vr.cloze'] }) : b;
-      qn = E.nextQuizQuestion(state, block, rng, seen, c.lastSkill);
+      qn = E.nextQuizQuestion(state, block, rng, seen, c.lastSkill, phase);
       c.lastSkill = qn.skill;
     }
-    c.q = qn; c.phase = 'question'; c.qStarted = Date.now();
+    c.q = qn; c.qStarted = Date.now();
+    // Teach first: before an unfamiliar skill's first question of the session,
+    // show its mini-lesson (in the challenge phase, only for brand-new skills).
+    const st = state.mastery[qn.skill];
+    const attempts = st ? st.attempts : 0;
+    const shouldTeach = E.lessonFor(qn.skill) && !c.taught.includes(qn.skill) && (c.blockTaught || 0) < 2 && (phase === 'learn' ? attempts < 6 : attempts === 0);
+    if (shouldTeach) { c.taught.push(qn.skill); c.blockTaught = (c.blockTaught || 0) + 1; c.phase = 'teach'; } else c.phase = 'question';
     save();
+  }
+
+  function renderTeach(stage) {
+    const c = cur(); const lesson = E.lessonFor(c.q.skill);
+    if (!lesson) { c.phase = 'question'; renderSession(); return; }
+    stage.innerHTML = `${lessonHtml(lesson, false)}<div class="btn-row" style="justify-content:center"><button type="button" class="btn big" id="lesson-go">Got it — let me try! 🚀</button></div>`;
+    const go = () => { c.phase = 'question'; save(); renderSession(); };
+    $('#lesson-go').onclick = go;
+    keyHandler = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
   }
 
   function renderCurrentQuestion(stage) {
@@ -381,9 +444,12 @@
     stage.innerHTML = (p ? passageHtml(p) : '') + '<div id="qbox"></div>';
     renderQuestion($('#qbox'), c.q, {
       streak: c.streak,
+      helpNote: 'Hints are always OK — use them on under ⅓ of questions for +5 bonus minutes.',
+      onHelp: () => { c.hints.used += 1; save(); updateHintMeter(); },
       onDone: (result, info) => {
         const xp = applyAnswer(c.q, result);
-        c.answers.push({ skill: c.q.skill, subject: subjectOf(c.q.skill), level: c.q.level, mode: c.q.mode, result, seconds: info.seconds, format: c.q.format, qid: c.q.id, block: b.id });
+        c.hints.total += 1;
+        c.answers.push({ skill: c.q.skill, subject: subjectOf(c.q.skill), level: c.q.level, mode: c.q.mode, result, seconds: info.seconds, format: c.q.format, qid: c.q.id, block: b.id, help: !!(info.meta && info.meta.helpUsed) });
         c.streak = result === 'correct' ? c.streak + 1 : result === 'wrong' ? 0 : c.streak;
         c.bestStreak = Math.max(c.bestStreak, c.streak);
         xpPop(xp, $('#timer'));
@@ -487,11 +553,11 @@
   function finishSession() {
     const c = cur(); if (!c) return;
     const summary = E.summarise(c);
-    const decision = E.tokenDecision(state, state.profile, c.activeSeconds, Date.now());
-    const session = { id: 's' + Date.now(), startedAt: c.startedAt, finishedAt: Date.now(), style: c.plan.style, minutes: Math.round(c.activeSeconds / 60), summary, token: !!decision.token, bonus: !!decision.bonus, answers: c.answers.length };
+    const decision = E.tokenDecision(state, state.profile, c.activeSeconds, Date.now(), c.hints);
+    const session = { id: 's' + Date.now(), startedAt: c.startedAt, finishedAt: Date.now(), style: c.plan.style, minutes: Math.round(c.activeSeconds / 60), summary, token: !!decision.token, bonus: !!decision.bonus, hintBonus: !!decision.hintBonus, answers: c.answers.length };
     state.sessions.push(session);
-    if (decision.token) { state.tokens.earned += 1; state.tokens.history.push({ type: 'earned', at: Date.now(), session: session.id }); }
-    if (decision.bonus) state.xp += 50;
+    if (decision.token) { state.tokens.earned += 1; state.tokens.history.push({ type: 'earned', at: Date.now(), session: session.id, minutes: decision.minutes }); }
+    if (decision.bonus) state.xp += 50 + (decision.hintBonus ? 15 : 0);
     const badges = E.checkBadges(state, c, summary);
     const focus = E.focusSuggestions(state, 3);
     state.current = null;
@@ -501,15 +567,21 @@
   }
 
   function renderWrap(r) {
-    const s = r.summary; const avail = state.tokens.earned - state.tokens.spent;
+    const s = r.summary; const vault = E.availableTokens(state);
+    const h = s.hints || { used: 0, total: 0 };
+    const hintLine = r.decision.hintBonus
+      ? `🌟 Hint-free bonus earned: you used only ${h.used} hint${h.used === 1 ? '' : 's'} in ${h.total} questions, so this token is worth <b>45 minutes</b> (40 + 5 bonus)!`
+      : h.total >= 8 ? `You used ${h.used} hints in ${h.total} questions. Use hints on fewer than a third of questions to make your next token worth 45 minutes.` : '';
     const subj = Object.entries(s.bySubject).map(([k, v]) => `<div class="stat"><b>${Math.round((v.correct / v.total) * 100)}%</b><span class="small">${D.SUBJECTS[k] ? D.SUBJECTS[k].emoji + ' ' + esc(D.SUBJECTS[k].label) : esc(k)}</span></div>`).join('');
     main.innerHTML = `<section class="card">
       <h1 class="center">Session complete, ${esc(name())}! 🎉</h1>
-      ${r.decision.token ? `<div class="token-award"><span class="coin">🎟️</span><h2>You earned a games token!</h2><p>That is 40 minutes of video games, redeemable with a grown-up. You now have <b>${avail}</b> token${avail === 1 ? '' : 's'}.</p></div>` : `<div class="tip">${esc(r.decision.reason)}${r.decision.bonus ? ' +50 XP bonus star! ⭐' : ''}</div>`}
+      ${r.decision.token ? `<div class="token-award"><span class="coin">🎟️</span><h2>You earned a games token!</h2><p>That is <b>${r.decision.minutes} minutes</b> of video games, redeemable with a grown-up. You now have <b>${vault.count}</b> token${vault.count === 1 ? '' : 's'} worth ${vault.minutes} minutes.</p></div>` : `<div class="tip">${esc(r.decision.reason)}${r.decision.bonus ? ' +50 XP bonus star! ⭐' : ''}${r.decision.bonus && r.decision.hintBonus ? ' Nearly hint-free too: +15 XP!' : ''}</div>`}
+      ${hintLine ? `<p class="small" style="margin-top:10px">${hintLine}</p>` : ''}
       <div class="results" style="margin-top:16px">
         <div class="stat"><b>${Math.round(s.accuracy * 100)}%</b><span class="small">overall</span></div>
         <div class="stat"><b>${s.total}</b><span class="small">tasks done</span></div>
         <div class="stat"><b>${s.bestStreak}</b><span class="small">best streak</span></div>
+        <div class="stat"><b>${h.used}</b><span class="small">hints used</span></div>
         <div class="stat"><b>${r.session.minutes}</b><span class="small">minutes</span></div>
         ${subj}
       </div>
@@ -520,7 +592,7 @@
     window.scrollTo({ top: 0 });
     if (r.decision.token) { confetti(); beep('great'); }
     $('#share').onclick = () => {
-      const text = `${name()} finished a ${r.session.minutes}-minute Brain Bridge session (${r.session.style.toUpperCase()} style): ${Math.round(s.accuracy * 100)}% overall, best streak ${s.bestStreak}. ${r.decision.token ? 'Token earned: 40 minutes of games!' : 'No token this time.'}`;
+      const text = `${name()} finished a ${r.session.minutes}-minute Brain Bridge session (${r.session.style.toUpperCase()} style): ${Math.round(s.accuracy * 100)}% overall, best streak ${s.bestStreak}, ${h.used} hints used. ${r.decision.token ? `Token earned: ${r.decision.minutes} minutes of games${r.decision.hintBonus ? ' (including the +5 hint-free bonus)' : ''}!` : 'No token this time.'}`;
       if (navigator.share) navigator.share({ text }).catch(() => {}); else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast('Copied!'));
     };
     renderHeaderStats();
@@ -562,7 +634,7 @@
       const block = { skills: pool, subject: practice.subject, format: practice.format, fixedLevel: practice.level === 'auto' ? null : +practice.level };
       const qn = E.nextQuizQuestion(state, block, rng, new Set(Object.keys(state.seen)), practice.last);
       practice.last = qn.skill;
-      renderQuestion($('#stage'), qn, { streak: practice.streak, onDone: (result) => {
+      renderQuestion($('#stage'), qn, { streak: practice.streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => {
         const xp = applyAnswer(qn, result); save(); xpPop(xp, $('#streak'));
         practice.count += 1; if (result === 'correct') { practice.correct += 1; practice.streak += 1; } else if (result === 'wrong') practice.streak = 0;
         $('#pscore').textContent = `${practice.correct} / ${practice.count}`; $('#streak').textContent = practice.streak >= 2 ? `🔥 ${practice.streak} in a row` : '';
@@ -582,7 +654,7 @@
     const ask = () => {
       if (i >= qs.length) { $('#qbox').innerHTML = `<div class="feedback ok"><div class="headline">Passage complete: ${correct} out of ${qs.length}</div><div class="btn-row"><a class="btn" href="#practice">Back to practice</a></div></div>`; return; }
       $('#pscore').textContent = `Question ${i + 1} of ${qs.length}`;
-      renderQuestion($('#qbox'), qs[i], { streak, onDone: (result) => { const xp = applyAnswer(qs[i], result); save(); xpPop(xp, $('#pscore')); if (result === 'correct') { correct += 1; streak += 1; } else if (result === 'wrong') streak = 0; else correct += 0.5; i += 1; renderHeaderStats(); ask(); } });
+      renderQuestion($('#qbox'), qs[i], { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => { const xp = applyAnswer(qs[i], result); save(); xpPop(xp, $('#pscore')); if (result === 'correct') { correct += 1; streak += 1; } else if (result === 'wrong') streak = 0; else correct += 0.5; i += 1; renderHeaderStats(); ask(); } });
     };
     ask();
   }
@@ -598,7 +670,7 @@
       if (kind === 'syn') { const opts = rng.shuffle([v.s[0]].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 3).map((x) => x.s[0]))); qn = { id: 'wb', skill: 'vr.synonym', level: v.l, format: 'mc', prompt: `Which word is closest in meaning to <b>${v.w}</b>?`, options: opts, answer: opts.indexOf(v.s[0]), explain: `${v.w} means ${v.d}.`, word: v.w, seconds: 25 }; }
       else if (kind === 'ant' && v.a) { const opts = rng.shuffle([v.a, v.s[0]].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 2).map((x) => x.w))); qn = { id: 'wb', skill: 'vr.antonym', level: v.l, format: 'mc', prompt: `Which word is most OPPOSITE to <b>${v.w}</b>?`, options: opts, answer: opts.indexOf(v.a), explain: `${v.w} means ${v.d}; the opposite is ${v.a}.`, word: v.w, seconds: 25 }; }
       else { const opts = rng.shuffle([v.w].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 3).map((x) => x.w))); qn = { id: 'wb', skill: 'vr.cloze', level: v.l, format: 'mc', prompt: `Choose the word that fits:<br><i>${esc(v.eg.replace(/___/g, '______'))}</i>`, options: opts, answer: opts.indexOf(v.w), explain: `${v.w} means ${v.d}.`, word: v.w, seconds: 30 }; }
-      renderQuestion($('#stage'), qn, { streak, onDone: (result) => { const xp = applyAnswer(qn, result); save(); xpPop(xp, $('#streak')); streak = result === 'correct' ? streak + 1 : 0; $('#streak').textContent = streak >= 2 ? `🔥 ${streak} in a row` : ''; renderHeaderStats(); next(); } });
+      renderQuestion($('#stage'), qn, { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => { const xp = applyAnswer(qn, result); save(); xpPop(xp, $('#streak')); streak = result === 'correct' ? streak + 1 : 0; $('#streak').textContent = streak >= 2 ? `🔥 ${streak} in a row` : ''; renderHeaderStats(); next(); } });
     };
     next();
   }
@@ -737,7 +809,7 @@
     const wb = Object.entries(state.wordBank).sort((a, b) => b[1].misses - a[1].misses);
     main.innerHTML = `<section class="card"><h1>📈 Progress</h1><p class="muted">Scores run from 0 to 100 and start at 50. Brain Bridge raises them when you get questions right (more for harder questions) and picks each question’s level from them: L1 warm-up, L2 exam level, L3 stretch.</p>
       ${subjects.map((s) => `<div class="subject-row"><span class="lbl">${D.SUBJECTS[s].emoji} ${esc(D.SUBJECTS[s].label)}</span><div class="bar"><i style="width:${Math.round(ov[s].score)}%;background:${D.SUBJECTS[s].colour}"></i></div><span class="small muted">${ov[s].attempts ? Math.round(ov[s].score) : '–'}</span></div>`).join('')}</section>
-      <section class="card"><h2>Sessions</h2>${state.sessions.length ? `<table class="skills-table"><tr><th>Date</th><th>Style</th><th>Score</th><th>Best streak</th><th>Minutes</th><th>Token</th></tr>${state.sessions.slice().reverse().map((s) => `<tr><td>${fmtDate(s.finishedAt)}</td><td><span class="pill ${s.style}">${s.style.toUpperCase()}</span></td><td>${Math.round(s.summary.accuracy * 100)}%</td><td>${s.summary.bestStreak}</td><td>${s.minutes}</td><td>${s.token ? '🎟️' : s.bonus ? '⭐' : '–'}</td></tr>`).join('')}</table>` : '<p class="small muted">No sessions yet.</p>'}</section>
+      <section class="card"><h2>Sessions</h2>${state.sessions.length ? `<table class="skills-table"><tr><th>Date</th><th>Style</th><th>Score</th><th>Best streak</th><th>Minutes</th><th>Token</th></tr>${state.sessions.slice().reverse().map((s) => `<tr><td>${fmtDate(s.finishedAt)}</td><td><span class="pill ${s.style}">${s.style.toUpperCase()}</span></td><td>${Math.round(s.summary.accuracy * 100)}%</td><td>${s.summary.bestStreak}</td><td>${s.minutes}</td><td>${s.token ? '🎟️' + (s.hintBonus ? ' +5' : '') : s.bonus ? '⭐' : '–'}</td></tr>`).join('')}</table>` : '<p class="small muted">No sessions yet.</p>'}</section>
       <section class="card"><h2>Badges</h2><div class="badges">${D.BADGES.map((b) => `<span class="badge ${state.badges.some((x) => x.id === b.id) ? '' : 'locked'}" title="${esc(b.desc)}"><span class="em">${b.emoji}</span>${esc(b.name)}</span>`).join('')}</div></section>
       ${subjects.filter((s) => E.SKILLS_BY_SUBJECT[s].length > 1).map((s) => `<section class="card"><h2>${D.SUBJECTS[s].emoji} ${esc(D.SUBJECTS[s].label)}</h2><table class="skills-table"><tr><th>Skill</th><th>Score</th><th></th><th>Level</th><th>Right</th></tr>${skillRows(s)}</table></section>`).join('')}
       <section class="card"><h2>Word bank</h2>${wb.length ? `<table class="skills-table"><tr><th>Word</th><th>Meaning</th><th>Slips</th></tr>${wb.map(([w, m]) => { const v = D.VOCAB.find((x) => x.w === w); return `<tr><td><b>${esc(w)}</b></td><td>${v ? esc(v.d) : ''}</td><td>${m.misses}</td></tr>`; }).join('')}</table><a class="btn sm" href="#practice/words" style="margin-top:10px">Review my words</a>` : '<p class="small muted">Words you miss in vocabulary questions collect here for review.</p>'}</section>`;
@@ -765,14 +837,14 @@
       $('#pinform').onsubmit = (e) => { e.preventDefault(); if ($('#pin').value === state.profile.pin) { parentUnlocked = true; navigate(); } else toast('Wrong PIN'); };
       return;
     }
-    const p = state.profile; const avail = state.tokens.earned - state.tokens.spent;
+    const p = state.profile; const vault = E.availableTokens(state); const avail = vault.count;
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const unmarked = state.writing.map((w, i) => ({ w, i })).filter(({ w }) => !w.parentScores).reverse();
     const tw = E.tokensThisWeek(state, Date.now());
     main.innerHTML = `<section class="card"><h1>👨‍👩‍👧 Parent corner</h1><p class="muted">Redeem tokens, mark writing, tune the schedule and back up progress.</p></section>
       <section class="grid two">
-        <div class="card"><h2>🎟️ Tokens</h2><div class="vault"><span class="coin">🎟️</span><div><span class="count">${avail}</span><div class="muted">available = ${avail * 40} minutes of games</div><div class="small muted">${state.tokens.earned} earned in total · ${state.tokens.spent} spent · ${tw} earned this week</div></div></div>
-          <div class="btn-row"><button type="button" class="btn sun" id="redeem" ${avail ? '' : 'disabled'}>Redeem one token (40 min)</button><button type="button" class="btn ghost sm" id="grant">Give a bonus token</button></div>
+        <div class="card"><h2>🎟️ Tokens</h2><div class="vault"><span class="coin">🎟️</span><div><span class="count">${avail}</span><div class="muted">available = ${vault.minutes} minutes of games</div><div class="small muted">${state.tokens.earned} earned in total · ${state.tokens.spent} spent · ${tw} earned this week. A token is 40 minutes, or 45 when the session was mostly hint-free.</div></div></div>
+          <div class="btn-row"><button type="button" class="btn sun" id="redeem" ${avail ? '' : 'disabled'}>Redeem one token (${vault.next} min)</button><button type="button" class="btn ghost sm" id="grant">Give a bonus token</button></div>
           ${state.tokens.history.length ? `<details style="margin-top:10px"><summary class="small">History</summary><ul class="small">${state.tokens.history.slice().reverse().slice(0, 20).map((h) => `<li>${fmtDate(h.at)}: ${h.type === 'earned' ? 'earned' : h.type === 'granted' ? 'bonus token given' : 'redeemed'}</li>`).join('')}</ul></details>` : ''}</div>
         <div class="card"><h2>⚙️ Settings</h2><form id="settings" class="stack">
           <label class="field"><span>Child’s first name</span><input type="text" id="s-name" value="${esc(p.name)}" maxlength="24"></label>
@@ -786,8 +858,8 @@
       <section class="card"><h2>✍️ Mark writing</h2><p class="muted">Automatic feedback spots patterns, but a human reads for meaning. Give each piece 1 to 5 stars per criterion and a comment; the child sees it in the Writing studio.</p>
         ${unmarked.length ? unmarked.map(({ w, i }) => { const pr = D.WRITING_PROMPTS.find((x) => x.id === w.promptId) || { title: '?' }; return `<details class="history-item"><summary><b>${esc(pr.title)}</b> · ${fmtDate(w.at)} · ${w.metrics.words} words</summary><div class="passage" style="max-height:300px;white-space:pre-wrap;margin-top:10px">${esc(w.text)}</div>${rubricHtml({}, true, i)}<textarea data-note="${i}" rows="2" placeholder="A comment for ${esc(name())}: one thing to celebrate, one thing to try."></textarea><div class="btn-row"><button type="button" class="btn sm" data-mark="${i}">Save marks</button></div></details>`; }).join('') : '<p class="small muted">Nothing waiting to be marked.</p>'}</section>
       <section class="card"><h2>💾 Backup</h2><p class="muted">Progress lives only in this browser. Export a backup now and then, or to move to another device.</p><div class="btn-row"><button type="button" class="btn secondary" id="export">Download backup</button><label class="btn secondary" for="import">Restore from backup</label><input type="file" id="import" accept="application/json" hidden><button type="button" class="btn coral" id="reset">Reset everything</button></div></section>`;
-    $('#redeem').onclick = () => { if (avail < 1) return; if (!confirm('Redeem one token for 40 minutes of games?')) return; state.tokens.spent += 1; state.tokens.history.push({ type: 'spent', at: Date.now() }); save(); toast('Token redeemed. Enjoy the games!'); navigate(); };
-    $('#grant').onclick = () => { if (!confirm('Give a bonus token?')) return; state.tokens.earned += 1; state.tokens.history.push({ type: 'granted', at: Date.now() }); save(); navigate(); };
+    $('#redeem').onclick = () => { if (avail < 1) return; if (!confirm(`Redeem one token for ${vault.next} minutes of games?`)) return; state.tokens.spent += 1; state.tokens.history.push({ type: 'spent', at: Date.now(), minutes: vault.next }); save(); toast(`Token redeemed: ${vault.next} minutes. Enjoy the games!`); navigate(); };
+    $('#grant').onclick = () => { if (!confirm('Give a bonus token (40 minutes)?')) return; state.tokens.earned += 1; state.tokens.history.push({ type: 'granted', at: Date.now(), minutes: 40 }); save(); navigate(); };
     $('#settings').onsubmit = (e) => { e.preventDefault(); const schools = []; if ($('#s-bgs').checked) schools.push('bgs'); if ($('#s-qeh').checked) schools.push('qeh'); const pin = $('#s-pin').value.trim(); if (pin && !/^\d{4}$/.test(pin)) { toast('PIN must be 4 digits'); return; } Object.assign(state.profile, { name: $('#s-name').value.trim(), schools: schools.length ? schools : ['bgs', 'qeh'], sessionDay: +$('#s-day').value, weeklyTokenLimit: +$('#s-limit').value, pin, sound: $('#s-sound').checked }); save(); toast('Saved'); renderHeaderStats(); };
     $$('[data-rubric] .stars button').forEach((b) => { b.onclick = () => { const n = +b.dataset.n; $$('button', b.parentElement).forEach((x) => x.classList.toggle('on', +x.dataset.n <= n)); }; });
     $$('[data-mark]').forEach((b) => { b.onclick = () => { const i = +b.dataset.mark; const root = $(`[data-rubric="${i}"]`); const scores = {}; $$('.stars', root).forEach((st) => { scores[st.dataset.crit] = $$('button.on', st).length; }); state.writing[i].parentScores = scores; state.writing[i].parentNote = $(`[data-note="${i}"]`).value.trim(); state.xp += 10; save(); toast('Marks saved'); navigate(); }; });

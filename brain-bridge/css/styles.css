@@ -261,3 +261,22 @@ textarea.writing { min-height: 320px; font-size: 1.05rem; }
 .xp-pop { position: fixed; pointer-events: none; font-family: var(--font-display); font-weight: 700; color: var(--mint); animation: rise 0.9s ease forwards; z-index: 56; }
 @keyframes rise { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-50px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Mini-lessons and hints */
+.lesson { background: linear-gradient(135deg, #eef6ff, #f3eeff); border: 2px solid var(--line); border-radius: var(--radius); padding: 20px 22px; animation: pop 0.25s ease; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lesson { background: linear-gradient(135deg, #16243d, #221a3d); } }
+.lesson.compact { padding: 14px 16px; margin-top: 10px; }
+.lesson-head { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
+.lesson-head .em { font-size: 2.6rem; line-height: 1; }
+.lesson.compact .lesson-head .em { font-size: 1.8rem; }
+.lesson-head h2, .lesson-head h3 { margin: 0; }
+.lesson-steps { margin: 0 0 12px; padding-left: 22px; }
+.lesson-steps li { margin-bottom: 8px; }
+.lesson-ex { background: var(--panel); border-radius: 12px; padding: 10px 14px; border: 1px solid var(--line); }
+.lesson-remember { margin: 10px 0 0; font-weight: 700; color: var(--blue-2); }
+.help-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.help-note { font-size: 0.8rem; color: var(--muted); flex: 1 1 200px; }
+.hint-panel { flex-basis: 100%; background: #fff8df; border-left: 4px solid var(--sun); padding: 10px 14px; border-radius: 10px; color: #4a3a00; font-weight: 600; animation: pop 0.2s ease; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .hint-panel { background: #3a3110; color: #ffe9a3; } }
+.lesson-panel { flex-basis: 100%; }
+#hint-meter { font-size: 0.78rem; }

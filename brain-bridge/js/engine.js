@@ -11,17 +11,28 @@
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./data.js'), require('./generators.js'));
+    module.exports = factory(require('./data.js'), require('./generators.js'), require('./lessons.js'));
   } else {
-    root.BBEngine = factory(root.BBData, root.BBGen);
+    root.BBEngine = factory(root.BBData, root.BBGen, root.BBLessons);
   }
-})(typeof self !== 'undefined' ? self : this, function (D, G) {
+})(typeof self !== 'undefined' ? self : this, function (D, G, L) {
   'use strict';
 
   const SESSION_MINUTES = 40;
   const START_SCORE = 50;
   const SKILLS_BY_SUBJECT = {};
   D.SKILLS.forEach((s) => { (SKILLS_BY_SUBJECT[s.subject] = SKILLS_BY_SUBJECT[s.subject] || []).push(s.id); });
+
+  /* --------------------------- lessons & hints ---------------------- */
+
+  const lessonFor = (skillId) => (L && L.LESSONS && L.LESSONS[skillId]) || null;
+  const hintFor = (qn) => qn.hint || ((lessonFor(qn.skill) || {}).r || '');
+
+  // Sessions teach first, then test: the first ~22 minutes are the learn
+  // phase (mini-lessons before unfamiliar skills), the rest is the
+  // challenge phase (testing and reinforcing what has been practised).
+  const LEARN_PHASE_SECONDS = 22 * 60;
+  const sessionPhase = (activeSeconds) => (activeSeconds < LEARN_PHASE_SECONDS ? 'learn' : 'challenge');
 
   /* ------------------------------ mastery --------------------------- */
 
@@ -114,14 +125,18 @@
 
   /* --------------------------- choosing questions ------------------- */
 
-  function chooseSkill(progress, skillIds, rng, lastSkill) {
+  function chooseSkill(progress, skillIds, rng, lastSkill, phase) {
     const now = Date.now();
     const weights = skillIds.map((id) => {
       const st = progress.mastery[id];
       const score = st ? st.score : START_SCORE;
       const days = st && st.lastSeen ? Math.min(14, (now - st.lastSeen) / 86400000) : 7;
       let w = (100 - score) * 0.8 + 12 + days * 2;
-      if (!st || st.attempts === 0) w += 10; // explore untried skills
+      if (!st || st.attempts === 0) {
+        // Learn phase explores new skills; the challenge phase mostly
+        // reinforces skills that have already been taught or practised.
+        if (phase === 'challenge') w *= 0.35; else w += 10;
+      }
       if (id === lastSkill && skillIds.length > 1) w *= 0.3;
       return w;
     });
@@ -139,9 +154,9 @@
     return { level: base, mode: 'normal' };
   }
 
-  function nextQuizQuestion(progress, block, rng, seen, lastSkill) {
+  function nextQuizQuestion(progress, block, rng, seen, lastSkill, phase) {
     const pool = block.skills || SKILLS_BY_SUBJECT[block.subject];
-    const skillId = chooseSkill(progress, pool, rng, lastSkill);
+    const skillId = chooseSkill(progress, pool, rng, lastSkill, phase);
     const pick = block.fixedLevel ? { level: block.fixedLevel, mode: 'normal' } : chooseLevel(progress, skillId, rng);
     let qn = G.generate(skillId, pick.level, rng, seen);
     if (block.format === 'mc') qn = G.toMC(qn, rng);
@@ -184,19 +199,46 @@
   }
   const stripFillers = (s) => normalise(s).replace(/^(the|a|an|it is|it was|he|she|they|because)\s+/, '').replace(/[.!?,'"()]/g, '').replace(/\s+/g, ' ').trim();
 
-  function parseNumber(s) {
+  // Units the student might type after (or glued onto) a number: "26p",
+  // "45 degrees", "28cm2", "95 mins". Longest first so "cm" wins over "m".
+  const UNIT_SUFFIXES = 'pence|pounds?|p|minutes?|mins?|min|seconds?|secs?|sec|hours?|hrs?|hr|h|days?|weeks?|degrees?|deg|km\\/h|kmh|kph|m\\/s|mph|cm[23]?|mm|km|ml|cl|litres?|liters?|l|kg|grams?|g|m[23]?|tiles?|coaches?|squares?|%|°';
+
+  function parseNumber(s, unit) {
     if (typeof s === 'number') return s;
-    let t = normalise(s).replace(/£|,/g, '').replace(/\b(pounds?|pence|p|cm|m|km|kg|g|ml|l|litres?|minutes?|mins?|seconds?|hours?|degrees?|days?|tiles?|cm²|cm³|m²|m³|km\/h|m\/s|%|°)\b/g, '').trim();
-    t = t.replace(/[%°²³]/g, '').trim();
+    let t = normalise(s).replace(/,/g, '').replace(/£/g, ' ');
+    t = t.replace(/\b(minus|negative)\s+/g, '-');
+    // Strip the question's own unit wherever it appears (attached or not).
+    if (unit && unit !== '£') {
+      const esc = String(unit).toLowerCase().replace(/[.*+?^${}()|[\]\\/]/g, '\\$&').replace(/²/g, '[²2]').replace(/³/g, '[³3]');
+      // Only strip the unit as a whole token after a digit or a space, so a
+      // short unit like "p" never eats letters inside other words.
+      t = t.replace(new RegExp('(^|[\\s\\d])' + esc + '(?![a-z0-9])', 'gi'), '$1 ');
+    }
+    // Strip common unit words/suffixes directly after a number.
+    t = t.replace(new RegExp('(\\d)\\s*(' + UNIT_SUFFIXES + ')(?![a-z])', 'gi'), '$1 ');
+    t = t.replace(/[%°²³]/g, ' ').replace(/\s+/g, ' ').trim().replace(/[.]\s*$/, '');
     const mixed = t.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/);
     if (mixed) return +mixed[1] + (+mixed[2] / +mixed[3]) * (mixed[1].startsWith('-') ? -1 : 1);
     const fr = t.match(/^(-?\d+)\s*\/\s*(\d+)$/);
     if (fr && +fr[2] !== 0) return +fr[1] / +fr[2];
     const num = t.match(/^-?\d+(\.\d+)?$/);
     if (num) return +t;
-    const words = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
-    if (words[t] != null) return words[t];
+    const words = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+    const w = t.match(/^(-?)([a-z]+)$/);
+    if (w && words[w[2]] != null) return (w[1] === '-' ? -1 : 1) * words[w[2]];
+    // A single number wrapped in words ("day 8", "about 150", "8 coaches").
+    const lone = t.match(/^[a-z\s]*(-?\d+(?:\.\d+)?)[a-z\s.]*$/);
+    if (lone) return +lone[1];
     return NaN;
+  }
+
+  // "16:30", "16.30", "1630" and "16 30" all mean the same clock time.
+  function timeDigits(x) {
+    const m = String(x == null ? '' : x).trim().match(/^(\d{1,2})[:. ]([0-5]\d)$|^(\d{2})([0-5]\d)$/);
+    if (!m) return null;
+    const h = m[1] != null ? m[1] : m[3];
+    const mm = m[2] != null ? m[2] : m[4];
+    return (h.length < 2 ? '0' : '') + h + mm;
   }
 
   function isSimplest(s) {
@@ -213,13 +255,21 @@
     const raw = String(response == null ? '' : response).trim();
     if (!raw) return { result: 'wrong', note: 'No answer given.' };
     if (qn.numeric) {
-      const want = typeof qn.answer === 'number' ? qn.answer : parseNumber(qn.answer);
-      const got = parseNumber(raw);
+      const want = typeof qn.answer === 'number' ? qn.answer : parseNumber(qn.answer, qn.unit);
+      const got = parseNumber(raw, qn.unit);
       if (Number.isNaN(got)) {
         if (qn.accept && qn.accept.some((a) => normalise(a) === normalise(raw))) return { result: 'correct' };
         return { result: 'wrong', note: 'I could not read that as a number.' };
       }
-      return { result: Math.abs(got - want) < 0.011 ? 'correct' : 'wrong' };
+      const close = (a, b) => Math.abs(a - b) < 0.011;
+      if (close(got, want)) return { result: 'correct' };
+      // Money: accept the same value given in the other unit, when the
+      // student wrote the unit (350p for £3.50; £0.26 for 26p).
+      const saysPence = /\d\s*(p\b|pence)/i.test(raw);
+      const saysPounds = /£|pounds?\b/i.test(raw);
+      if (qn.unit === '£' && saysPence && !saysPounds && close(got / 100, want)) return { result: 'correct' };
+      if (qn.unit === 'p' && saysPounds && close(got * 100, want)) return { result: 'correct' };
+      return { result: 'wrong' };
     }
     if (qn.fraction) {
       const want = parseNumber(qn.answer), got = parseNumber(raw);
@@ -232,6 +282,9 @@
     const acc = (qn.accept || []).concat(qn.answer != null ? [qn.answer] : []).map(normalise).filter(Boolean);
     const n = normalise(raw), s = stripFillers(raw);
     if (acc.length && (acc.includes(n) || acc.map(stripFillers).includes(s) || acc.some((a) => a.length > 2 && (n === a || n.replace(/[.!?]$/, '') === a)))) return { result: 'correct' };
+    // Clock times: 16.30, 1630 and 16 30 all count as 16:30.
+    const rawTime = timeDigits(n.replace(/[.!?]$/, ''));
+    if (rawTime && acc.some((a) => timeDigits(a) === rawTime)) return { result: 'correct' };
     if (qn.keywords && qn.keywords.length) {
       const hit = qn.keywords.filter((group) => group.some((k) => n.includes(normalise(k)))).length;
       const need = qn.need || 1;
@@ -386,16 +439,36 @@
     return (progress.tokens.history || []).filter((h) => h.type === 'earned' && weekKey(h.at) === key).length;
   }
 
-  // Decide whether a finished session earns a token.
-  function tokenDecision(progress, profile, activeSeconds, now) {
+  // Hints are always allowed, but solving mostly without them earns extra
+  // game minutes on top of the token.
+  const HINT_BONUS_MINUTES = 5;
+  function hintBonusEarned(hints) {
+    return !!(hints && hints.total >= 8 && hints.used * 3 <= hints.total);
+  }
+
+  // Decide whether a finished session earns a token, and how many minutes
+  // of games it is worth (40, plus 5 if hints were mostly not used).
+  function tokenDecision(progress, profile, activeSeconds, now, hints) {
+    const hintBonus = hintBonusEarned(hints);
     const needed = SESSION_MINUTES * 60 - 30;
-    if (activeSeconds < needed) return { token: false, reason: `Sessions need the full ${SESSION_MINUTES} minutes to earn a token.` };
+    if (activeSeconds < needed) return { token: false, hintBonus: false, reason: `Sessions need the full ${SESSION_MINUTES} minutes to earn a token.` };
     const limit = profile.weeklyTokenLimit == null ? 1 : profile.weeklyTokenLimit;
-    if (limit > 0 && tokensThisWeek(progress, now) >= limit) return { token: false, bonus: true, reason: `You have already earned this week’s token, so this one is a bonus star.` };
-    return { token: true };
+    if (limit > 0 && tokensThisWeek(progress, now) >= limit) return { token: false, bonus: true, hintBonus, reason: `You have already earned this week’s token, so this one is a bonus star.` };
+    return { token: true, hintBonus, minutes: SESSION_MINUTES + (hintBonus ? HINT_BONUS_MINUTES : 0) };
+  }
+
+  // Tokens still to spend, and the game minutes they are worth (a token is
+  // 40 minutes, plus any hint-free bonus minutes it was earned with).
+  function availableTokens(progress) {
+    const count = Math.max(0, (progress.tokens.earned || 0) - (progress.tokens.spent || 0));
+    const gained = (progress.tokens.history || []).filter((h) => h.type === 'earned' || h.type === 'granted');
+    const unspent = gained.slice(Math.min(progress.tokens.spent || 0, gained.length));
+    const extra = unspent.reduce((a, h) => a + Math.max(0, (h.minutes || SESSION_MINUTES) - SESSION_MINUTES), 0);
+    return { count, minutes: count * SESSION_MINUTES + extra, next: unspent[0] ? (unspent[0].minutes || SESSION_MINUTES) : SESSION_MINUTES };
   }
 
   function summarise(session) {
+    const hints = session.hints || { used: 0, total: 0 };
     const bySubject = {};
     let correct = 0, total = 0, best = 0, streak = 0;
     (session.answers || []).forEach((a) => {
@@ -405,7 +478,7 @@
       else { s.correct += 0.5; correct += 0.5; }
     });
     const stretchWins = (session.answers || []).filter((a) => a.mode === 'stretch' && a.result === 'correct').length;
-    return { correct, total, accuracy: total ? correct / total : 0, bestStreak: best, bySubject, stretchWins };
+    return { correct, total, accuracy: total ? correct / total : 0, bestStreak: best, bySubject, stretchWins, hints };
   }
 
   function checkBadges(progress, session, summary) {
@@ -451,7 +524,8 @@
   }
 
   return {
-    SESSION_MINUTES, START_SCORE, SKILLS_BY_SUBJECT, TEMPLATES,
+    SESSION_MINUTES, HINT_BONUS_MINUTES, START_SCORE, SKILLS_BY_SUBJECT, TEMPLATES,
+    lessonFor, hintFor, sessionPhase, hintBonusEarned, availableTokens,
     skillState, levelFor, expected, recordAnswer, subjectScore, overview,
     pickStyle, composeSession, chooseSkill, chooseLevel, nextQuizQuestion, choosePassage, passageQuestions, chooseInterviewQuestion, chooseWritingPrompt,
     normalise, parseNumber, grade, isSimplest,
