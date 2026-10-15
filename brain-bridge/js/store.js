@@ -26,6 +26,7 @@
       passages: {},
       wordBank: {},
       sessions: [],
+      practiceLog: [],
       tokens: { earned: 0, spent: 0, history: [] },
       writing: [],
       interview: [],
@@ -41,7 +42,7 @@
     out.profile = Object.assign({}, d.profile, (state && state.profile) || {});
     out.tokens = Object.assign({}, d.tokens, (state && state.tokens) || {});
     ['mastery', 'seen', 'passages', 'wordBank'].forEach((k) => { if (!out[k] || typeof out[k] !== 'object') out[k] = {}; });
-    ['sessions', 'writing', 'interview', 'badges'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
+    ['sessions', 'practiceLog', 'writing', 'interview', 'badges'].forEach((k) => { if (!Array.isArray(out[k])) out[k] = []; });
     out.version = VERSION;
     return out;
   }

@@ -85,7 +85,17 @@
     $('#header-stats').innerHTML = `<span class="chip" title="Games tokens available">🎟️ ${avail}</span><span class="chip" title="Experience points">⭐ ${state.xp} XP</span>`;
   }
 
-  function sessionsDone() { return state.sessions.length; }
+  function sessionsDone() { return state.sessions.filter((x) => x.completed !== false).length; }
+
+  // Free practice is logged per day so engagement outside sessions shows too.
+  function logPractice(info, result) {
+    const day = new Date().toISOString().slice(0, 10);
+    let e = state.practiceLog.find((x) => x.day === day);
+    if (!e) { e = { day, seconds: 0, questions: 0, correct: 0 }; state.practiceLog.push(e); }
+    e.seconds += (info && info.seconds) || 0;
+    e.questions += 1;
+    if (result === 'correct') e.correct += 1;
+  }
 
   /* ------------------------------ HOME --------------------------------- */
 
@@ -93,7 +103,7 @@
     const now = Date.now();
     const schools = state.profile.schools.length ? state.profile.schools : ['bgs', 'qeh'];
     const wk = E.weekKey(now);
-    const doneThisWeek = state.sessions.some((s) => E.weekKey(s.finishedAt || s.startedAt) === wk);
+    const doneThisWeek = state.sessions.some((s) => s.completed !== false && E.weekKey(s.finishedAt || s.startedAt) === wk);
     const plan = state.current && state.current.plan ? state.current.plan : E.composeSession(state, state.profile, sessionsDone());
     const vault = E.availableTokens(state);
     const ov = E.overview(state);
@@ -147,7 +157,12 @@
         </div>
       </section>`;
     const ab = $('#abandon');
-    if (ab) ab.onclick = () => { if (confirm('Abandon this session? Progress on answered questions is kept, but no token is earned.')) { state.current = null; save(); navigate(); } };
+    if (ab) ab.onclick = () => {
+      if (!confirm('Abandon this session? No token is earned, but everything done so far is kept and recorded in the session log.')) return;
+      const c = state.current;
+      if (c && (c.answers.length || c.activeSeconds >= 60)) state.sessions.push(E.buildSessionRecord(c, { token: false }, false));
+      state.current = null; save(); navigate();
+    };
   };
 
   /* --------------------------- question rendering ---------------------- */
@@ -449,7 +464,7 @@
       onDone: (result, info) => {
         const xp = applyAnswer(c.q, result);
         c.hints.total += 1;
-        c.answers.push({ skill: c.q.skill, subject: subjectOf(c.q.skill), level: c.q.level, mode: c.q.mode, result, seconds: info.seconds, format: c.q.format, qid: c.q.id, block: b.id, help: !!(info.meta && info.meta.helpUsed) });
+        c.answers.push({ skill: c.q.skill, subject: subjectOf(c.q.skill), level: c.q.level, mode: c.q.mode, result, seconds: info.seconds, format: c.q.format, qid: c.q.id, block: b.id, help: !!(info.meta && info.meta.helpUsed), skipped: !!(info.meta && info.meta.skipped) });
         c.streak = result === 'correct' ? c.streak + 1 : result === 'wrong' ? 0 : c.streak;
         c.bestStreak = Math.max(c.bestStreak, c.streak);
         xpPop(xp, $('#timer'));
@@ -521,6 +536,7 @@
       const iq = D.INTERVIEW_QUESTIONS.find((x) => x.id === c.block.qid);
       const a = E.analyseInterview(c.block.text, iq);
       state.interview.push({ at: Date.now(), qid: iq.id, text: c.block.text, score: a.score, mode: 'typed' });
+      (c.artifacts = c.artifacts || []).push({ type: 'interview', qid: iq.id, score: a.score, words: (c.block.text || '').trim().split(/\s+/).filter(Boolean).length });
       E.recordAnswer(state, iq.skill, a.score >= 4 ? 'correct' : a.score >= 2 ? 'partial' : 'wrong', 2);
       state.xp += 10 + a.score * 2;
       c.answers.push({ skill: iq.skill, subject: 'interview', level: 2, result: a.score >= 4 ? 'correct' : a.score >= 2 ? 'partial' : 'wrong', seconds: c.blockSeconds, format: 'task', qid: iq.id, block: b.id });
@@ -529,6 +545,7 @@
       const p = D.WRITING_PROMPTS.find((x) => x.id === c.block.promptId);
       const a = E.analyseWriting(c.block.text, p);
       state.writing.push({ at: Date.now(), promptId: p.id, text: c.block.text, plan: c.block.plan, metrics: a.metrics, scores: a.scores, minutes: b.minutes });
+      (c.artifacts = c.artifacts || []).push({ type: 'writing', promptId: p.id, words: a.metrics.words });
       const avg = Object.values(a.scores).reduce((x, y) => x + y, 0) / 6;
       E.recordAnswer(state, p.skill, avg >= 3.5 ? 'correct' : avg >= 2.5 ? 'partial' : 'wrong', 2);
       state.xp += 15 + Math.round(a.metrics.words / 20);
@@ -552,9 +569,9 @@
 
   function finishSession() {
     const c = cur(); if (!c) return;
-    const summary = E.summarise(c);
     const decision = E.tokenDecision(state, state.profile, c.activeSeconds, Date.now(), c.hints);
-    const session = { id: 's' + Date.now(), startedAt: c.startedAt, finishedAt: Date.now(), style: c.plan.style, minutes: Math.round(c.activeSeconds / 60), summary, token: !!decision.token, bonus: !!decision.bonus, hintBonus: !!decision.hintBonus, answers: c.answers.length };
+    const session = E.buildSessionRecord(c, decision, true);
+    const summary = session.summary;
     state.sessions.push(session);
     if (decision.token) { state.tokens.earned += 1; state.tokens.history.push({ type: 'earned', at: Date.now(), session: session.id, minutes: decision.minutes }); }
     if (decision.bonus) state.xp += 50 + (decision.hintBonus ? 15 : 0);
@@ -634,8 +651,8 @@
       const block = { skills: pool, subject: practice.subject, format: practice.format, fixedLevel: practice.level === 'auto' ? null : +practice.level };
       const qn = E.nextQuizQuestion(state, block, rng, new Set(Object.keys(state.seen)), practice.last);
       practice.last = qn.skill;
-      renderQuestion($('#stage'), qn, { streak: practice.streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => {
-        const xp = applyAnswer(qn, result); save(); xpPop(xp, $('#streak'));
+      renderQuestion($('#stage'), qn, { streak: practice.streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result, info) => {
+        const xp = applyAnswer(qn, result); logPractice(info, result); save(); xpPop(xp, $('#streak'));
         practice.count += 1; if (result === 'correct') { practice.correct += 1; practice.streak += 1; } else if (result === 'wrong') practice.streak = 0;
         $('#pscore').textContent = `${practice.correct} / ${practice.count}`; $('#streak').textContent = practice.streak >= 2 ? `🔥 ${practice.streak} in a row` : '';
         renderHeaderStats(); next();
@@ -654,7 +671,7 @@
     const ask = () => {
       if (i >= qs.length) { $('#qbox').innerHTML = `<div class="feedback ok"><div class="headline">Passage complete: ${correct} out of ${qs.length}</div><div class="btn-row"><a class="btn" href="#practice">Back to practice</a></div></div>`; return; }
       $('#pscore').textContent = `Question ${i + 1} of ${qs.length}`;
-      renderQuestion($('#qbox'), qs[i], { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => { const xp = applyAnswer(qs[i], result); save(); xpPop(xp, $('#pscore')); if (result === 'correct') { correct += 1; streak += 1; } else if (result === 'wrong') streak = 0; else correct += 0.5; i += 1; renderHeaderStats(); ask(); } });
+      renderQuestion($('#qbox'), qs[i], { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result, info) => { const xp = applyAnswer(qs[i], result); logPractice(info, result); save(); xpPop(xp, $('#pscore')); if (result === 'correct') { correct += 1; streak += 1; } else if (result === 'wrong') streak = 0; else correct += 0.5; i += 1; renderHeaderStats(); ask(); } });
     };
     ask();
   }
@@ -670,7 +687,7 @@
       if (kind === 'syn') { const opts = rng.shuffle([v.s[0]].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 3).map((x) => x.s[0]))); qn = { id: 'wb', skill: 'vr.synonym', level: v.l, format: 'mc', prompt: `Which word is closest in meaning to <b>${v.w}</b>?`, options: opts, answer: opts.indexOf(v.s[0]), explain: `${v.w} means ${v.d}.`, word: v.w, seconds: 25 }; }
       else if (kind === 'ant' && v.a) { const opts = rng.shuffle([v.a, v.s[0]].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 2).map((x) => x.w))); qn = { id: 'wb', skill: 'vr.antonym', level: v.l, format: 'mc', prompt: `Which word is most OPPOSITE to <b>${v.w}</b>?`, options: opts, answer: opts.indexOf(v.a), explain: `${v.w} means ${v.d}; the opposite is ${v.a}.`, word: v.w, seconds: 25 }; }
       else { const opts = rng.shuffle([v.w].concat(rng.sample(D.VOCAB.filter((x) => x.w !== v.w), 3).map((x) => x.w))); qn = { id: 'wb', skill: 'vr.cloze', level: v.l, format: 'mc', prompt: `Choose the word that fits:<br><i>${esc(v.eg.replace(/___/g, '______'))}</i>`, options: opts, answer: opts.indexOf(v.w), explain: `${v.w} means ${v.d}.`, word: v.w, seconds: 30 }; }
-      renderQuestion($('#stage'), qn, { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result) => { const xp = applyAnswer(qn, result); save(); xpPop(xp, $('#streak')); streak = result === 'correct' ? streak + 1 : 0; $('#streak').textContent = streak >= 2 ? `🔥 ${streak} in a row` : ''; renderHeaderStats(); next(); } });
+      renderQuestion($('#stage'), qn, { streak, helpNote: 'Hints and mini-lessons are free in practice.', onDone: (result, info) => { const xp = applyAnswer(qn, result); logPractice(info, result); save(); xpPop(xp, $('#streak')); streak = result === 'correct' ? streak + 1 : 0; $('#streak').textContent = streak >= 2 ? `🔥 ${streak} in a row` : ''; renderHeaderStats(); next(); } });
     };
     next();
   }
@@ -802,6 +819,37 @@
 
   /* ------------------------------ PROGRESS ----------------------------- */
 
+  function engagementHtml(parent) {
+    const g = E.engagementStats(state);
+    const pct = g.sessions.questions ? Math.round((g.sessions.correct / g.sessions.questions) * 100) : 0;
+    return `<section class="card"><h2>⏱️ Engagement</h2>
+      <div class="results">
+        <div class="stat"><b>${g.sessions.minutes}</b><span class="small">session minutes</span></div>
+        <div class="stat"><b>${g.sessions.completed}</b><span class="small">sessions done${g.sessions.abandoned ? ' (+' + g.sessions.abandoned + ' unfinished)' : ''}</span></div>
+        <div class="stat"><b>${g.sessions.questions}</b><span class="small">questions in sessions</span></div>
+        <div class="stat"><b>${pct}%</b><span class="small">answered correctly</span></div>
+        <div class="stat"><b>${g.sessions.lessons}</b><span class="small">lessons taken</span></div>
+        <div class="stat"><b>${g.writing.words}</b><span class="small">words written (${g.writing.pieces} piece${g.writing.pieces === 1 ? '' : 's'})</span></div>
+        <div class="stat"><b>${g.interview.answers}</b><span class="small">interview answers${g.interview.avgScore ? ' · avg ' + g.interview.avgScore + '⭐' : ''}</span></div>
+        <div class="stat"><b>${g.practice.minutes}</b><span class="small">practice minutes (${g.practice.questions} questions over ${g.practice.days} day${g.practice.days === 1 ? '' : 's'})</span></div>
+      </div>
+      ${g.weeks.length ? `<h3 style="margin-top:14px">Recent weeks</h3><table class="skills-table"><tr><th>Week</th><th>Sessions</th><th>Session mins</th><th>Practice mins</th><th>Questions</th></tr>${g.weeks.slice().reverse().map((w) => `<tr><td>${esc(w.week)}</td><td>${w.sessions}</td><td>${w.sessionMinutes}</td><td>${w.practiceMinutes}</td><td>${w.questions}</td></tr>`).join('')}</table>` : ''}
+      ${parent ? '<div class="btn-row"><button type="button" class="btn secondary" id="csv">Download session log (CSV)</button></div><p class="small muted">The CSV has one row per session attempt: date, start and end time, minutes, questions, correct/partial/wrong/skipped, hints, lessons, writing words, interview answers, per-subject accuracy and the token result. The full backup (below) also keeps every individual answer.</p>' : ''}
+    </section>`;
+  }
+
+  function sessionLogHtml() {
+    if (!state.sessions.length) return '<section class="card"><h2>📒 Session log</h2><p class="small muted">No sessions yet. Every session attempt will be recorded here, even unfinished ones.</p></section>';
+    const hhmm = (t) => { const d = new Date(t); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); };
+    const rows = state.sessions.slice().reverse().map((s) => {
+      const sm = s.summary || {}; const c = s.counts || {};
+      const words = (s.writing || []).reduce((a, w) => a + (w.words || 0), 0);
+      const detail = `${c.correct != null ? `✔ ${c.correct} · 🟡 ${c.partial} · ✘ ${c.wrong}${c.skipped ? ` (${c.skipped} skipped)` : ''} · ` : ''}best streak ${sm.bestStreak != null ? sm.bestStreak : '–'}${sm.bySubject ? ' · ' + Object.entries(sm.bySubject).map(([k, v]) => `${D.SUBJECTS[k] ? D.SUBJECTS[k].emoji : ''} ${Math.round((v.correct / v.total) * 100)}%`).join(' ') : ''}${(s.interview || []).length ? ` · 🎤 ${s.interview.length} answer${s.interview.length === 1 ? '' : 's'}` : ''}`;
+      return `<tr title="${esc(detail)}"><td>${fmtDate(s.startedAt)}</td><td>${hhmm(s.startedAt)}–${hhmm(s.finishedAt || s.startedAt)}</td><td>${s.style ? `<span class="pill ${s.style}">${s.style.toUpperCase()}</span>` : ''}</td><td>${s.minutes}</td><td>${s.answers != null ? s.answers : '–'}</td><td>${Math.round((sm.accuracy || 0) * 100)}%</td><td>${sm.hints ? sm.hints.used : '–'}</td><td>${s.lessons != null ? s.lessons : '–'}</td><td>${words || '–'}</td><td>${s.completed === false ? '<span class="pill coral">unfinished</span>' : s.token ? '🎟️ ' + (s.tokenMinutes || 40) + 'm' : s.bonus ? '⭐' : '–'}</td></tr>`;
+    }).join('');
+    return `<section class="card"><h2>📒 Session log</h2><p class="small muted">Every session attempt is recorded, including unfinished ones. Hover a row for the full breakdown; the Parent corner can download it all as a spreadsheet.</p><div style="overflow-x:auto"><table class="skills-table"><tr><th>Date</th><th>Time</th><th>Style</th><th>Mins</th><th>Qs</th><th>Correct</th><th>Hints</th><th>Lessons</th><th>Words</th><th>Result</th></tr>${rows}</table></div></section>`;
+  }
+
   views.progress = function () {
     const ov = E.overview(state);
     const subjects = Object.keys(D.SUBJECTS);
@@ -809,7 +857,8 @@
     const wb = Object.entries(state.wordBank).sort((a, b) => b[1].misses - a[1].misses);
     main.innerHTML = `<section class="card"><h1>📈 Progress</h1><p class="muted">Scores run from 0 to 100 and start at 50. Brain Bridge raises them when you get questions right (more for harder questions) and picks each question’s level from them: L1 warm-up, L2 exam level, L3 stretch.</p>
       ${subjects.map((s) => `<div class="subject-row"><span class="lbl">${D.SUBJECTS[s].emoji} ${esc(D.SUBJECTS[s].label)}</span><div class="bar"><i style="width:${Math.round(ov[s].score)}%;background:${D.SUBJECTS[s].colour}"></i></div><span class="small muted">${ov[s].attempts ? Math.round(ov[s].score) : '–'}</span></div>`).join('')}</section>
-      <section class="card"><h2>Sessions</h2>${state.sessions.length ? `<table class="skills-table"><tr><th>Date</th><th>Style</th><th>Score</th><th>Best streak</th><th>Minutes</th><th>Token</th></tr>${state.sessions.slice().reverse().map((s) => `<tr><td>${fmtDate(s.finishedAt)}</td><td><span class="pill ${s.style}">${s.style.toUpperCase()}</span></td><td>${Math.round(s.summary.accuracy * 100)}%</td><td>${s.summary.bestStreak}</td><td>${s.minutes}</td><td>${s.token ? '🎟️' + (s.hintBonus ? ' +5' : '') : s.bonus ? '⭐' : '–'}</td></tr>`).join('')}</table>` : '<p class="small muted">No sessions yet.</p>'}</section>
+      ${engagementHtml(false)}
+      ${sessionLogHtml()}
       <section class="card"><h2>Badges</h2><div class="badges">${D.BADGES.map((b) => `<span class="badge ${state.badges.some((x) => x.id === b.id) ? '' : 'locked'}" title="${esc(b.desc)}"><span class="em">${b.emoji}</span>${esc(b.name)}</span>`).join('')}</div></section>
       ${subjects.filter((s) => E.SKILLS_BY_SUBJECT[s].length > 1).map((s) => `<section class="card"><h2>${D.SUBJECTS[s].emoji} ${esc(D.SUBJECTS[s].label)}</h2><table class="skills-table"><tr><th>Skill</th><th>Score</th><th></th><th>Level</th><th>Right</th></tr>${skillRows(s)}</table></section>`).join('')}
       <section class="card"><h2>Word bank</h2>${wb.length ? `<table class="skills-table"><tr><th>Word</th><th>Meaning</th><th>Slips</th></tr>${wb.map(([w, m]) => { const v = D.VOCAB.find((x) => x.w === w); return `<tr><td><b>${esc(w)}</b></td><td>${v ? esc(v.d) : ''}</td><td>${m.misses}</td></tr>`; }).join('')}</table><a class="btn sm" href="#practice/words" style="margin-top:10px">Review my words</a>` : '<p class="small muted">Words you miss in vocabulary questions collect here for review.</p>'}</section>`;
@@ -857,12 +906,16 @@
       </section>
       <section class="card"><h2>✍️ Mark writing</h2><p class="muted">Automatic feedback spots patterns, but a human reads for meaning. Give each piece 1 to 5 stars per criterion and a comment; the child sees it in the Writing studio.</p>
         ${unmarked.length ? unmarked.map(({ w, i }) => { const pr = D.WRITING_PROMPTS.find((x) => x.id === w.promptId) || { title: '?' }; return `<details class="history-item"><summary><b>${esc(pr.title)}</b> · ${fmtDate(w.at)} · ${w.metrics.words} words</summary><div class="passage" style="max-height:300px;white-space:pre-wrap;margin-top:10px">${esc(w.text)}</div>${rubricHtml({}, true, i)}<textarea data-note="${i}" rows="2" placeholder="A comment for ${esc(name())}: one thing to celebrate, one thing to try."></textarea><div class="btn-row"><button type="button" class="btn sm" data-mark="${i}">Save marks</button></div></details>`; }).join('') : '<p class="small muted">Nothing waiting to be marked.</p>'}</section>
+      ${engagementHtml(true)}
+      ${sessionLogHtml()}
       <section class="card"><h2>💾 Backup</h2><p class="muted">Progress lives only in this browser. Export a backup now and then, or to move to another device.</p><div class="btn-row"><button type="button" class="btn secondary" id="export">Download backup</button><label class="btn secondary" for="import">Restore from backup</label><input type="file" id="import" accept="application/json" hidden><button type="button" class="btn coral" id="reset">Reset everything</button></div></section>`;
     $('#redeem').onclick = () => { if (avail < 1) return; if (!confirm(`Redeem one token for ${vault.next} minutes of games?`)) return; state.tokens.spent += 1; state.tokens.history.push({ type: 'spent', at: Date.now(), minutes: vault.next }); save(); toast(`Token redeemed: ${vault.next} minutes. Enjoy the games!`); navigate(); };
     $('#grant').onclick = () => { if (!confirm('Give a bonus token (40 minutes)?')) return; state.tokens.earned += 1; state.tokens.history.push({ type: 'granted', at: Date.now(), minutes: 40 }); save(); navigate(); };
     $('#settings').onsubmit = (e) => { e.preventDefault(); const schools = []; if ($('#s-bgs').checked) schools.push('bgs'); if ($('#s-qeh').checked) schools.push('qeh'); const pin = $('#s-pin').value.trim(); if (pin && !/^\d{4}$/.test(pin)) { toast('PIN must be 4 digits'); return; } Object.assign(state.profile, { name: $('#s-name').value.trim(), schools: schools.length ? schools : ['bgs', 'qeh'], sessionDay: +$('#s-day').value, weeklyTokenLimit: +$('#s-limit').value, pin, sound: $('#s-sound').checked }); save(); toast('Saved'); renderHeaderStats(); };
     $$('[data-rubric] .stars button').forEach((b) => { b.onclick = () => { const n = +b.dataset.n; $$('button', b.parentElement).forEach((x) => x.classList.toggle('on', +x.dataset.n <= n)); }; });
     $$('[data-mark]').forEach((b) => { b.onclick = () => { const i = +b.dataset.mark; const root = $(`[data-rubric="${i}"]`); const scores = {}; $$('.stars', root).forEach((st) => { scores[st.dataset.crit] = $$('button.on', st).length; }); state.writing[i].parentScores = scores; state.writing[i].parentNote = $(`[data-note="${i}"]`).value.trim(); state.xp += 10; save(); toast('Marks saved'); navigate(); }; });
+    const csvBtn = $('#csv');
+    if (csvBtn) csvBtn.onclick = () => { const blob = new Blob([E.sessionLogCsv(state)], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `brain-bridge-session-log-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); };
     $('#export').onclick = () => { const blob = new Blob([S.exportJson(state)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `brain-bridge-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); };
     $('#import').onchange = (e) => { const f = e.target.files[0]; if (!f) return; f.text().then((t) => { try { state = S.importJson(t); save(); toast('Backup restored'); navigate(); } catch (err) { toast(err.message, 4000); } }); };
     $('#reset').onclick = () => { if (confirm('Delete ALL progress, tokens and writing? This cannot be undone.') && confirm('Really delete everything?')) { state = S.reset(); parentUnlocked = false; save(); navigate(); } };

@@ -481,11 +481,91 @@
     return { correct, total, accuracy: total ? correct / total : 0, bestStreak: best, bySubject, stretchWins, hints };
   }
 
+  // Build the permanent record of one session attempt (finished or
+  // abandoned). Everything a parent needs to verify engagement: when it ran,
+  // how long, what was answered, hints, lessons, writing and interview work.
+  function buildSessionRecord(c, decision, completed, now) {
+    now = now || Date.now();
+    const summary = summarise(c);
+    const counts = { correct: 0, partial: 0, wrong: 0, skipped: 0 };
+    (c.answers || []).forEach((a) => {
+      if (a.result === 'correct') counts.correct += 1;
+      else if (a.result === 'partial') counts.partial += 1;
+      else { counts.wrong += 1; if (a.skipped) counts.skipped += 1; }
+    });
+    const artifacts = c.artifacts || [];
+    return {
+      id: 's' + now,
+      startedAt: c.startedAt,
+      finishedAt: now,
+      completed: !!completed,
+      style: c.plan ? c.plan.style : '',
+      minutes: Math.round((c.activeSeconds || 0) / 60),
+      activeSeconds: c.activeSeconds || 0,
+      blocksDone: Math.min(c.blockIndex || 0, c.plan ? c.plan.blocks.length : 0),
+      blocksTotal: c.plan ? c.plan.blocks.length : 0,
+      summary,
+      counts,
+      lessons: (c.taught || []).length,
+      writing: artifacts.filter((a) => a.type === 'writing'),
+      interview: artifacts.filter((a) => a.type === 'interview'),
+      token: !!(decision && decision.token),
+      tokenMinutes: decision && decision.token ? decision.minutes : 0,
+      bonus: !!(decision && decision.bonus),
+      hintBonus: !!(decision && decision.hintBonus),
+      answers: (c.answers || []).length,
+      detail: (c.answers || []).slice()
+    };
+  }
+
+  const sum = (arr, f) => (arr || []).reduce((a, x) => a + (f(x) || 0), 0);
+
+  // Lifetime engagement figures across sessions, free practice, writing and
+  // interview work, plus a recent per-week breakdown.
+  function engagementStats(progress, weeksBack) {
+    const ss = progress.sessions || [];
+    const completed = ss.filter((x) => x.completed !== false);
+    const sessions = {
+      total: ss.length,
+      completed: completed.length,
+      abandoned: ss.length - completed.length,
+      minutes: sum(ss, (x) => x.minutes),
+      questions: sum(ss, (x) => x.answers),
+      correct: sum(ss, (x) => (x.counts ? x.counts.correct : Math.floor((x.summary || {}).correct || 0))),
+      hints: sum(ss, (x) => ((x.summary || {}).hints || {}).used),
+      lessons: sum(ss, (x) => x.lessons)
+    };
+    const pl = progress.practiceLog || [];
+    const practice = { days: pl.length, questions: sum(pl, (x) => x.questions), correct: sum(pl, (x) => x.correct), minutes: Math.round(sum(pl, (x) => x.seconds) / 60) };
+    const writing = { pieces: (progress.writing || []).length, words: sum(progress.writing || [], (w) => (w.metrics || {}).words) };
+    const iv = progress.interview || [];
+    const interview = { answers: iv.length, avgScore: iv.length ? +(sum(iv, (x) => x.score) / iv.length).toFixed(1) : 0 };
+    const byWeek = {};
+    const wk = (k) => (byWeek[k] = byWeek[k] || { sessions: 0, sessionMinutes: 0, practiceMinutes: 0, questions: 0 });
+    ss.forEach((x) => { const w = wk(weekKey(x.finishedAt || x.startedAt)); w.sessions += 1; w.sessionMinutes += x.minutes || 0; w.questions += x.answers || 0; });
+    pl.forEach((x) => { const w = wk(weekKey(new Date(x.day + 'T12:00:00'))); w.practiceMinutes += Math.round((x.seconds || 0) / 60); w.questions += x.questions || 0; });
+    const weeks = Object.keys(byWeek).sort().slice(-(weeksBack || 6)).map((k) => Object.assign({ week: k }, byWeek[k]));
+    return { sessions, practice, writing, interview, weeks };
+  }
+
+  // The session log as a spreadsheet-friendly CSV, one row per attempt.
+  function sessionLogCsv(progress) {
+    const cell = (v) => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const hhmm = (t) => { const d = new Date(t); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes(); };
+    const head = ['date', 'start', 'end', 'style', 'completed', 'active_minutes', 'blocks_done', 'questions', 'correct', 'partial', 'wrong', 'skipped', 'accuracy_pct', 'best_streak', 'hints_used', 'lessons_viewed', 'stretch_wins', 'writing_words', 'interview_answers', 'subjects', 'token', 'token_minutes'];
+    const rows = (progress.sessions || []).map((x) => {
+      const sm = x.summary || {}; const c = x.counts || {};
+      const subj = Object.entries(sm.bySubject || {}).map(([k, v]) => k + ' ' + Math.round((v.correct / v.total) * 100) + '%').join(' | ');
+      return [new Date(x.startedAt).toISOString().slice(0, 10), hhmm(x.startedAt), hhmm(x.finishedAt || x.startedAt), (x.style || '').toUpperCase(), x.completed === false ? 'no' : 'yes', x.minutes, x.blocksTotal ? `${x.blocksDone}/${x.blocksTotal}` : '', x.answers, c.correct != null ? c.correct : '', c.partial != null ? c.partial : '', c.wrong != null ? c.wrong : '', c.skipped != null ? c.skipped : '', Math.round((sm.accuracy || 0) * 100), sm.bestStreak != null ? sm.bestStreak : '', sm.hints ? sm.hints.used : '', x.lessons != null ? x.lessons : '', sm.stretchWins != null ? sm.stretchWins : '', sum(x.writing || [], (w) => w.words), (x.interview || []).length, subj, x.token ? 'yes' : x.bonus ? 'bonus star' : 'no', x.tokenMinutes || ''].map(cell).join(',');
+    });
+    return head.join(',') + '\n' + rows.join('\n') + (rows.length ? '\n' : '');
+  }
+
   function checkBadges(progress, session, summary) {
     const have = new Set(progress.badges.map((b) => b.id));
     const earned = [];
     const award = (id) => { if (!have.has(id)) { earned.push(id); have.add(id); } };
-    const sessions = progress.sessions.length;
+    const sessions = progress.sessions.filter((x) => x.completed !== false).length;
     if (sessions >= 1) award('first-session');
     if (sessions >= 5) award('five-sessions');
     if (sessions >= 10) award('ten-sessions');
@@ -501,7 +581,7 @@
     const ov = overview(progress);
     if (Object.values(ov).every((o) => o.attempts > 0 && o.score >= 60)) award('all-rounder');
     if (Object.values(progress.mastery).some((m) => m.attempts >= 6 && m.score >= 60 && m.low && m.low < 40)) award('comeback');
-    const weeks = new Set(progress.sessions.map((s) => weekKey(s.finishedAt || s.startedAt)));
+    const weeks = new Set(progress.sessions.filter((x) => x.completed !== false).map((s) => weekKey(s.finishedAt || s.startedAt)));
     if (weeks.size >= 4) { const sorted = [...weeks].sort(); let run = 1, bestRun = 1; for (let i = 1; i < sorted.length; i++) { run = consecutiveWeeks(sorted[i - 1], sorted[i]) ? run + 1 : 1; bestRun = Math.max(bestRun, run); } if (bestRun >= 4) award('weekly-4'); }
     if (session && (session.answers || []).filter((a) => a.format === 'mc' && a.result === 'correct' && a.seconds <= 45).length >= 10) award('speedster');
     earned.forEach((id) => progress.badges.push({ id, at: Date.now() }));
@@ -530,6 +610,7 @@
     pickStyle, composeSession, chooseSkill, chooseLevel, nextQuizQuestion, choosePassage, passageQuestions, chooseInterviewQuestion, chooseWritingPrompt,
     normalise, parseNumber, grade, isSimplest,
     analyseWriting, analyseInterview,
-    weekKey, tokensThisWeek, tokenDecision, summarise, checkBadges, focusSuggestions, weeksUntil
+    weekKey, tokensThisWeek, tokenDecision, summarise, checkBadges, focusSuggestions, weeksUntil,
+    buildSessionRecord, engagementStats, sessionLogCsv
   };
 });

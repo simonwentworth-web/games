@@ -24,6 +24,13 @@ localStorage, with export/import from the Parent corner.
   pitched at level 1, 2 or 3 from that score; three right in a row can trigger a stretch question
   and two misses bring a confidence-builder. Each session gives extra minutes to the weakest
   subject, and the skill picker favours weak and untried topics.
+- **A verifiable session log.** Every session attempt is recorded permanently, including
+  abandoned ones: date, start and end time, active minutes, blocks completed, every answer
+  (with result, seconds and whether a hint was used), hints, lessons viewed, writing done in
+  the session (with word counts), interview answers and the token outcome. Free practice is
+  logged per day too. The Progress page and Parent corner show an engagement dashboard
+  (total minutes, questions, correct rate, words written, recent weeks) and the Parent
+  corner exports the whole log as a CSV spreadsheet.
 - **Tokens, XP, streaks and badges.** One token per completed 40-minute session (one per week by
   default; extra sessions earn bonus stars). Praise for right answers, a clear explanation and a
   tip for wrong ones.
