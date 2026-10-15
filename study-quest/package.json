@@ -1,0 +1,14 @@
+{
+  "name": "study-quest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Eli's MYP2 home-learning app: complete a session, earn a token, trade it for 40 minutes of gaming.",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
